@@ -15,7 +15,7 @@ import re
 
 # --- 0. 基本設定 ---
 # 実際の運用時はここにご自身のデプロイしたURLを入力してください
-APP_URL = "https://your-app-name.streamlit.app/" 
+APP_URL = "https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/#156eb3e3" 
 
 CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
 INVESTMENT_QUOTES = [
@@ -217,7 +217,7 @@ if st.session_state.results:
             f"━━━━━━━━━━━━━━\n"
             f"AIが最新ニュースと相場を解析しました！\n"
             f"詳細をアプリでチェック 👇\n"
-            f"{APP_URL}"
+            f"https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/#156eb3e3"
         )
         x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}"
         st.markdown(f'<a href="{x_url}" target="_blank" class="x-share-button">𝕏 この結果をポストして保存</a>', unsafe_allow_html=True)
