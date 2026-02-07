@@ -138,6 +138,28 @@ with ad_col2:
 
 st.markdown("---")
 
+# 凡例をスマホでも見やすく（上部に配置）
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=10)
+        plt.tight_layout()
+        st.pyplot(fig) # ← これが元からあるグラフ表示の行です
+
+        # --- ここから追加：グラフダウンロードボタン ---
+        import io
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches='tight')
+
+        st.download_button(
+            label="📈 予測グラフを画像で保存",
+            data=buf.getvalue(),
+            file_name=f"{selected_names[0]}_AI予測グラフ.png",
+            mime="image/png",
+            help="ダウンロードした画像をX(Twitter)に貼り付けて投稿できます！"
+        )
+        # --- ここまで ---
+
+        # 2. 診断詳細
+        st.markdown("---")
+
 # --- 6. 実行ロジック（グラフと結果） ---
 if execute:
     results = []
