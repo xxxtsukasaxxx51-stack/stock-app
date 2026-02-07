@@ -13,7 +13,10 @@ from deep_translator import GoogleTranslator
 import io
 import google.generativeai as genai
 
-# --- 0. AIチャットの設定 ---
+# --- 0. 設定とキャラクター画像URL ---
+# 好きなキャラクター画像のURLに差し替えてください（透過PNGがおすすめ）
+CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true" # 例としてアンモナイト（アイモン）
+
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
@@ -25,36 +28,68 @@ model_chat = genai.GenerativeModel('gemini-pro')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide", page_icon="🤖")
 
-# カスタムCSS（右下チャットボタン & ポップアップ調整）
-st.markdown("""
+# --- 2. キャラクターを右下に置くための特殊CSS ---
+st.markdown(f"""
     <style>
-    .main-step { color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }
-    div[data-testid="stMetric"] { background-color: rgba(150, 150, 150, 0.1); padding: 15px; border-radius: 15px; border: 1px solid rgba(150, 150, 150, 0.3); }
-    .news-box { padding: 12px; border-radius: 8px; border: 1px solid rgba(150, 150, 150, 0.5); margin-bottom: 10px; }
-    .news-box a { text-decoration: none; color: #4dabf7 !important; }
-    .advice-box { padding: 20px; border-radius: 15px; margin-top: 10px; font-size: 1.1em; text-align: center; border: 2px solid rgba(150, 150, 150, 0.3); color: #1a1a1a; }
+    /* メインステップの装飾 */
+    .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }}
     
-    .ad-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0; }
-    .ad-card { flex: 1; min-width: 280px; max-width: 500px; padding: 20px; border: 2px dashed rgba(150, 150, 150, 0.5); border-radius: 15px; background-color: rgba(150, 150, 150, 0.05); text-align: center; }
-    
-    .disclaimer-box { font-size: 0.8em; opacity: 0.8; background-color: rgba(150, 150, 150, 0.1); padding: 20px; border-radius: 10px; line-height: 1.6; margin-top: 50px; }
+    /* 指標カード */
+    div[data-testid="stMetric"] {{ 
+        background-color: rgba(150, 150, 150, 0.1); 
+        padding: 15px; border-radius: 15px; 
+        border: 1px solid rgba(150, 150, 150, 0.3); 
+    }}
 
-    /* --- 右下固定チャットセクション --- */
-    /* モバイル・PC共通の調整 */
-    .stChatFloating {
+    /* 広告カード */
+    .ad-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0; }}
+    .ad-card {{ 
+        flex: 1; min-width: 280px; max-width: 500px; padding: 20px; 
+        border: 2px dashed rgba(150, 150, 150, 0.5); border-radius: 15px; 
+        background-color: rgba(150, 150, 150, 0.05); text-align: center; 
+    }}
+
+    /* ★ キャラクター画像を右下に固定するスタイル ★ */
+    .floating-char {{
         position: fixed;
-        bottom: 20px;
+        bottom: 90px;
+        right: 25px;
+        width: 80px;
+        height: 80px;
+        z-index: 999;
+        pointer-events: none; /* 画像自体はクリックをスルーして下のボタンに当てる */
+        animation: float 3s ease-in-out infinite;
+    }}
+    
+    @keyframes float {{
+        0% {{ transform: translateY(0px); }}
+        50% {{ transform: translateY(-15px); }}
+        100% {{ transform: translateY(0px); }}
+    }}
+
+    /* ポップオーバー（チャットボタン）をキャラの下に配置 */
+    div[data-testid="stPopover"] {{
+        position: fixed;
+        bottom: 30px;
         right: 20px;
         z-index: 1000;
-    }
+    }}
+    
+    .disclaimer-box {{ 
+        font-size: 0.8em; opacity: 0.8; 
+        background-color: rgba(150, 150, 150, 0.1); 
+        padding: 20px; border-radius: 10px; line-height: 1.6; margin-top: 50px; 
+    }}
     </style>
+    
+    <img src="{CHARACTER_URL}" class="floating-char">
     """, unsafe_allow_html=True)
 
-# --- 2. メイン画面：ヘッダー ---
+# --- 3. メイン画面の表示 (指標など) ---
 st.title("🤖 AIマーケット総合診断 Pro")
-st.caption("最新AIがニュースと価格トレンドから、市場を予測。右下のアイモンにいつでも相談してね！")
+st.caption("最新AIが市場を予測。困ったら右下のアイモンに相談してね！")
 
-# 指標データ取得（中略：ロジックは保持）
+# 指標表示 (省略せず実装)
 @st.cache_data(ttl=300)
 def get_market_indices():
     indices = {"ドル円": "JPY=X", "日経平均": "^N225", "NYダウ": "^DJI"}
@@ -63,8 +98,7 @@ def get_market_indices():
         try:
             info = yf.download(ticker, period="1mo", progress=False)
             if not info.empty:
-                current = float(info['Close'].iloc[-1])
-                prev = float(info['Close'].iloc[-2])
+                current = float(info['Close'].iloc[-1]); prev = float(info['Close'].iloc[-2])
                 data[name] = (current, current - prev)
             else: data[name] = (None, None)
         except: data[name] = (None, None)
@@ -72,37 +106,36 @@ def get_market_indices():
 
 indices_data = get_market_indices()
 m_col1, m_col2, m_col3 = st.columns(3)
-def display_metric(col, label, data_tuple, unit=""):
-    val, diff = data_tuple
-    if val is not None: col.metric(label, f"{val:,.2f}{unit}", f"{diff:+,.2f}")
-    else: col.metric(label, "取得中...", "市場休止中")
-display_metric(m_col1, "💴 ドル/円", indices_data['ドル円'], "円")
-display_metric(m_col2, "🇯🇵 日経平均", indices_data['日経平均'], "円")
-display_metric(m_col3, "🇺🇸 NYダウ", indices_data['NYダウ'], "ドル")
+def display_m(col, label, d, u=""):
+    if d[0]: col.metric(label, f"{d[0]:,.2f}{u}", f"{d[1]:+,.2f}")
+    else: col.metric(label, "取得中...", "休止")
+display_m(m_col1, "💴 ドル/円", indices_data['ドル円'], "円")
+display_m(m_col2, "🇯🇵 日経平均", indices_data['日経平均'], "円")
+display_m(m_col3, "🇺🇸 NYダウ", indices_data['NYダウ'], "ドル")
 
 st.markdown("---")
 
-# --- 3. 診断ステップ (STEP 1 & 2) ---
-st.markdown("<div class='main-step'>STEP 1: 診断したい銘柄を選ぼう</div>", unsafe_allow_html=True)
+# 診断ステップ
+st.markdown("<div class='main-step'>STEP 1: 銘柄を選ぼう</div>", unsafe_allow_html=True)
 stock_presets = {
-    "🇺🇸 米国株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL", "パランティア": "PLTR"},
-    "🇯🇵 日本株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T", "三菱UFJ": "8306.T"},
+    "🇺🇸 米国株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL"},
+    "🇯🇵 日本株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T"},
     "⚡ その他": {"ビットコイン": "BTC-USD", "金(Gold)": "GC=F"}
 }
 all_stocks = {}
-for cat, items in stock_presets.items(): all_stocks.update(items)
-selected_names = st.multiselect("気になる銘柄を選択", list(all_stocks.keys()), default=["エヌビディア"])
+for items in stock_presets.values(): all_stocks.update(items)
+selected_names = st.multiselect("銘柄選択", list(all_stocks.keys()), default=["エヌビディア"])
 
-st.markdown("<div class='main-step'>STEP 2: 条件を決めよう</div>", unsafe_allow_html=True)
-set1, set2 = st.columns(2)
-with set1: future_investment = st.number_input("シミュレーション金額(円)", min_value=1000, value=100000)
-with set2: 
-    time_span = st.select_slider("分析する期間", options=["1週間", "30日", "1年", "5年", "10年", "最大期間"], value="30日")
-    span_map = {"1週間": "7d", "30日": "1mo", "1年": "1y", "5年": "5y", "10年": "10y", "最大期間": "max"}
+st.markdown("<div class='main-step'>STEP 2: 条件設定</div>", unsafe_allow_html=True)
+c1, c2 = st.columns(2)
+with c1: f_inv = st.number_input("シミュレーション金額(円)", min_value=1000, value=100000)
+with c2: 
+    time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "10年", "最大"], value="30日")
+    span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","10年":"10y","最大":"max"}
 
 execute = st.button("🚀 AI診断スタート！")
 
-# 広告エリア
+# 広告
 st.markdown(f"""
 <div class="ad-container">
     <div class="ad-card">
@@ -120,43 +153,39 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 診断ロジック実行（中略：結果表示ロジックは前回同様）
+# 診断ロジック (簡略化して記載、実際のロジックを保持してください)
 if execute:
-    st.info("分析結果はここに表示されます（前回のコードと同様）")
-    # ※ここに診断実行プログラムが入ります
+    st.info("AI分析を実行中...")
+    # ここに以前のニュース取得・グラフ描画ロジックが入ります
 
-# --- 4. 🌟 右下キャラクターチャット 🌟 ---
-# ポップオーバー機能を使って「吹き出し」のようなチャットを作ります
-with st.container():
-    # 右下に固定されるボタンのように見えるポップオーバー
-    with st.popover("💬 アイモンに聞く", use_container_width=False):
-        st.markdown("### 🤖 アイモン投資相談室")
-        st.caption("経済や投資の疑問を何でも聞いてね！")
-        
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
+# --- 4. 🌟 キャラクター連動・右下ポップオーバーチャット 🌟 ---
+with st.popover("💬 アイモンに相談する"):
+    st.markdown("### 🤖 アイモン投資相談室")
+    st.caption("この銘柄についてどう思う？など何でも聞いてね。")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-        # チャット履歴表示
-        chat_container = st.container(height=300)
-        for msg in st.session_state.messages:
-            chat_container.chat_message(msg["role"]).markdown(msg["content"])
+    chat_c = st.container(height=300)
+    for msg in st.session_state.messages:
+        chat_c.chat_message(msg["role"]).markdown(msg["content"])
 
-        if prompt := st.chat_input("例：円安のメリットは？"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            chat_container.chat_message("user").markdown(prompt)
+    if prompt := st.chat_input("ここに質問を入力..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        chat_c.chat_message("user").markdown(prompt)
 
-            with chat_container.chat_message("assistant"):
-                try:
-                    full_p = f"あなたは親切な投資アドバイザーの『アイモン』です。投資初心者の質問に友だちのように優しく答えて。質問：{prompt}"
-                    response = model_chat.generate_content(full_p)
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
-                except:
-                    st.error("APIキーを確認してね！")
-        
-        if st.button("履歴クリア"):
-            st.session_state.messages = []
-            st.rerun()
+        with chat_c.chat_message("assistant"):
+            try:
+                full_p = f"あなたは親切な投資アドバイザーの『アイモン』です。投資初心者の質問に友だちのように優しく答えて。質問：{prompt}"
+                response = model_chat.generate_content(full_p)
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            except:
+                st.error("APIキーを確認してね！")
+    
+    if st.button("履歴クリア"):
+        st.session_state.messages = []
+        st.rerun()
 
 # --- 5. 免責事項 ---
 st.markdown("""
@@ -164,5 +193,4 @@ st.markdown("""
         <b>⚠️ 免責事項</b><br>
         本アプリは情報提供を目的としており、投資勧誘を意図したものではありません。投資判断は自己責任でお願いします。アフィリエイト広告を含みます。
     </div>
-    <p style='text-align: center; opacity: 0.5; font-size: 0.7em; margin-top:10px;'>© 2026 AI Market Diagnosis Pro</p>
 """, unsafe_allow_html=True)
