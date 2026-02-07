@@ -177,3 +177,30 @@ if execute:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
     else:
         st.info("銘柄を選んでボタンを押してください。")
+        # --- 7. 免責事項（アプリの最下部に配置） ---
+st.markdown("---")
+
+# スタイリッシュな免責事項エリア
+st.markdown("""
+    <style>
+    .disclaimer {
+        font-size: 0.8em;
+        color: #666;
+        background-color: #f1f3f5;
+        padding: 20px;
+        border-radius: 10px;
+        line-height: 1.6;
+        margin-top: 30px;
+    }
+    </style>
+    <div class="disclaimer">
+        <b>【免責事項】</b><br>
+        ● 本アプリが提供するデータ、AIによる分析結果、株価予測は情報の提供のみを目的としており、投資の勧誘や助言を目的としたものではありません。<br>
+        ● 予測結果は過去のデータに基づく計算値であり、将来の運用成果を保証するものではありません。実際の市場動向は経済情勢や予期せぬイベントにより大きく異なる場合があります。<br>
+        ● 本アプリに掲載されているリンク先（証券会社等）を通じて行われるサービスの利用については、利用者ご自身の判断と責任において行ってください。<br>
+        ● 本アプリを利用したことにより生じたいかなる損害・不利益についても、開発者は一切の責任を負いません。<br>
+        ● 投資に関する最終決定は、ご自身の判断と責任で行っていただくようお願いいたします。
+    </div>
+    <br>
+    <p style='text-align: center; color: #999; font-size: 0.7em;'>© 2024 AI Market Diagnosis Pro - All Rights Reserved.</p>
+    """, unsafe_allow_html=True)
