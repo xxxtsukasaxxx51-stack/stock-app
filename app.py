@@ -14,7 +14,7 @@ import io
 import google.generativeai as genai
 import random
 
-# --- 0. 基本設定とキャラクター画像URL ---
+# --- 0. 基本設定 ---
 CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
 
 try:
@@ -28,10 +28,10 @@ model_chat = genai.GenerativeModel('gemini-pro')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide", page_icon="🤖")
 
-# --- 2. CSS：キャラクタークリック起動・透過・デザイン ---
+# --- 2. CSS：【超重要】クリック判定の最前面固定 ---
 st.markdown(f"""
     <style>
-    /* メイン装飾 */
+    /* メインデザイン */
     .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }}
     div[data-testid="stMetric"] {{ background-color: rgba(150, 150, 150, 0.1); padding: 15px; border-radius: 15px; border: 1px solid rgba(150, 150, 150, 0.3); }}
     .news-box {{ padding: 12px; border-radius: 8px; border: 1px solid rgba(150, 150, 150, 0.5); margin-bottom: 10px; }}
@@ -42,48 +42,47 @@ st.markdown(f"""
     .ad-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0; }}
     .ad-card {{ flex: 1; min-width: 280px; max-width: 500px; padding: 20px; border: 2px dashed rgba(150, 150, 150, 0.5); border-radius: 15px; background-color: rgba(150, 150, 150, 0.05); text-align: center; }}
 
-    /* キャラクターコンテナ（最前面へ） */
-    .floating-container {{
+    /* キャラクター表示コンテナ */
+    .char-visual-container {{
         position: fixed;
         bottom: 20px;
         right: 20px;
-        z-index: 9999;
+        z-index: 9998; /* ボタンより一つ下 */
         display: flex;
         flex-direction: column;
         align-items: center;
+        pointer-events: none; /* クリックを透明ボタンへ通す */
     }}
 
-    /* キャラクター画像 */
     .char-img {{
-        width: 140px;
+        width: 150px;
         height: auto;
         mix-blend-mode: multiply;
         filter: contrast(110%) brightness(105%) drop-shadow(5px 5px 15px rgba(0,0,0,0.3));
         animation: float 3s ease-in-out infinite;
-        pointer-events: none; /* 画像自体はクリックを透過させる */
     }}
 
-    /* 透明ボタンをキャラに被せる */
-    div[data-testid="stPopover"] {{
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 10000;
-    }}
-    div[data-testid="stPopover"] > button {{
-        width: 140px !important;
-        height: 140px !important;
-        background-color: transparent !important;
-        color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }}
-
-    /* 吹き出し */
     .bubble {{
         position: relative; background: white; border: 2px solid #3182ce; border-radius: 15px;
         padding: 8px 12px; margin-bottom: 10px; font-size: 0.8em; color: black;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; width: 160px; text-align: center;
+    }}
+
+    /* ★チャット起動用：透明な巨大ボタンをキャラの上に固定★ */
+    div[data-testid="stPopover"] {{
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 2147483647 !important; /* 絶対的最前面 */
+    }}
+    div[data-testid="stPopover"] > button {{
+        width: 150px !important;
+        height: 180px !important; /* キャラクター＋少しの余白分 */
+        background-color: transparent !important;
+        color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        cursor: pointer !important;
     }}
 
     @keyframes float {{
@@ -96,17 +95,16 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. キャラクター・チャット配置 ---
-# 背面：見た目
-current_msg = random.choice(["ボクをタップしてね！", "今の株価どう思う？", "投資の相談にのるよ！"])
+# --- 3. キャラクター配置 & チャットロジック ---
+# 見た目（クリックできない）
 st.markdown(f"""
-    <div class="floating-container">
-        <div class="bubble">{current_msg}</div>
+    <div class="char-visual-container">
+        <div class="bubble">ボクをタップしてね！</div>
         <img src="{CHARACTER_URL}" class="char-img">
     </div>
     """, unsafe_allow_html=True)
 
-# 前面：透明ボタン
+# 実体（透明なクリック判定）
 with st.popover(""):
     st.markdown("### 🤖 アイモン投資相談室")
     if "messages" not in st.session_state: st.session_state.messages = []
@@ -131,7 +129,7 @@ with st.popover(""):
 st.title("🤖 AIマーケット総合診断 Pro")
 st.caption("最新AIが市場を予測。右下のアイモンをタップして相談してね！")
 
-# 指標
+# 指標取得
 @st.cache_data(ttl=300)
 def get_market_indices():
     indices = {"ドル円": "JPY=X", "日経平均": "^N225", "NYダウ": "^DJI"}
@@ -157,7 +155,7 @@ disp_m(m3, "🇺🇸 NYダウ", idx_data['NYダウ'], "ドル")
 
 st.markdown("---")
 
-# --- 5. 銘柄選択・フリー入力 ---
+# --- 5. 銘柄入力 ---
 st.markdown("<div class='main-step'>STEP 1: 銘柄を選ぼう</div>", unsafe_allow_html=True)
 stock_presets = {
     "🇺🇸 米国株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL"},
@@ -170,23 +168,23 @@ col_input1, col_input2 = st.columns([2, 1])
 with col_input1:
     selected_names = st.multiselect("リストから選択", list(all_stocks_preset.keys()), default=["エヌビディア"])
 with col_input2:
-    free_input = st.text_input("ティッカー直接入力", placeholder="例: 9984.T, MSFT")
+    free_input = st.text_input("ティッカー直接入力 (例: 9984.T)", placeholder="直接入力...")
 
-# 選択銘柄と直接入力を統合
+# 銘柄統合
 final_targets = {name: all_stocks_preset[name] for name in selected_names}
 if free_input:
     final_targets[free_input.upper()] = free_input.upper()
 
 st.markdown("<div class='main-step'>STEP 2: 条件設定</div>", unsafe_allow_html=True)
 c1, c2 = st.columns(2)
-with c1: f_inv = st.number_input("投資金額(円)", min_value=1000, value=100000)
+with c1: f_inv = st.number_input("投資シミュレーション金額(円)", min_value=1000, value=100000)
 with c2: 
     time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "10年"], value="30日")
     span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","10年":"10y"}
 
 execute = st.button("🚀 AI診断スタート！")
 
-# 広告エリア
+# 広告
 st.markdown(f"""
 <div class="ad-container">
     <div class="ad-card">
@@ -204,13 +202,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 6. 診断ロジック ---
+# --- 6. 実行ロジック ---
 if "sentiment_analyzer" not in st.session_state:
     st.session_state.sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
 if execute and final_targets:
     results, plot_data = [], {}
-    with st.spinner('市場データを解析中...'):
+    with st.spinner('AI分析中...'):
         for name, symbol in final_targets.items():
             try:
                 df = yf.download(symbol, period=span_map[time_span], progress=False)
