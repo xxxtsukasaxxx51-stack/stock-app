@@ -15,9 +15,10 @@ import google.generativeai as genai
 import random
 
 # --- 0. 基本設定とキャラクター画像URL ---
-# ※ここにGitHubのrawリンクを貼り付けてください
+# あなたのGitHub上の画像URL
 CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
 
+# APIキー設定
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
@@ -29,7 +30,7 @@ model_chat = genai.GenerativeModel('gemini-pro')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide", page_icon="🤖")
 
-# --- 2. CSS：透過対策・巨大キャラ・吹き出し ---
+# --- 2. CSS：キャラクタークリック起動・透過・デザイン ---
 st.markdown(f"""
     <style>
     /* メイン装飾 */
@@ -43,63 +44,106 @@ st.markdown(f"""
     .ad-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0; }}
     .ad-card {{ flex: 1; min-width: 280px; max-width: 500px; padding: 20px; border: 2px dashed rgba(150, 150, 150, 0.5); border-radius: 15px; background-color: rgba(150, 150, 150, 0.05); text-align: center; }}
 
-    /* ★キャラクターと吹き出しの固定配置（透過対策強化）★ */
-    .floating-char-container {{
+    /* キャラクターと透明ボタンを包むコンテナ */
+    .char-click-container {{
         position: fixed;
-        bottom: 100px;
-        right: 20px;
-        z-index: 999;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1000;
         display: flex;
         flex-direction: column;
         align-items: center;
-        pointer-events: none; /* 下のボタンをクリック可能に */
+        pointer-events: none; /* 下の要素に触れるように */
     }}
-    .char-img {{
-        width: 150px; /* さらに大きく表示 */
+
+    /* キャラクター画像の設定 */
+    .char-img-clickable {{
+        width: 150px;
         height: auto;
-        /* 背景が白や格子模様の場合、これを「darken」か「multiply」にすると透過します */
-        mix-blend-mode: multiply; 
-        filter: drop-shadow(5px 5px 15px rgba(0,0,0,0.2));
+        mix-blend-mode: multiply; /* 白背景透過 */
+        filter: contrast(110%) brightness(105%) drop-shadow(5px 5px 15px rgba(0,0,0,0.2));
         animation: float 3s ease-in-out infinite;
     }}
+
+    /* 吹き出し */
     .bubble {{
         position: relative; background: #ffffff; border: 2px solid #3182ce; border-radius: 15px;
-        padding: 10px 15px; margin-bottom: 15px; font-size: 0.9em; color: #1a1a1a;
-        max-width: 200px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold;
-        pointer-events: auto; /* 吹き出しは触れるように */
+        padding: 10px 15px; margin-bottom: 10px; font-size: 0.85em; color: #1a1a1a;
+        max-width: 180px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold;
     }}
     .bubble::after {{
-        content: ""; position: absolute; bottom: -12px; right: 30px;
-        border-width: 12px 12px 0; border-style: solid; border-color: #ffffff transparent;
+        content: ""; position: absolute; bottom: -10px; right: 40px;
+        border-width: 10px 10px 0; border-style: solid; border-color: #ffffff transparent;
     }}
+
+    /* ポップオーバーのボタンを透明化してキャラに重ねる */
+    div[data-testid="stPopover"] {{
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1001;
+    }}
+    div[data-testid="stPopover"] > button {{
+        width: 150px !important;
+        height: 150px !important;
+        background-color: transparent !important;
+        color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        pointer-events: auto;
+    }}
+
     @keyframes float {{
         0% {{ transform: translateY(0px) rotate(0deg); }}
         50% {{ transform: translateY(-15px) rotate(2deg); }}
         100% {{ transform: translateY(0px) rotate(0deg); }}
     }}
 
-    /* ポップオーバーボタンをキャラの真下に固定 */
-    div[data-testid="stPopover"] {{ position: fixed; bottom: 30px; right: 30px; z-index: 1000; }}
     .disclaimer-box {{ font-size: 0.8em; opacity: 0.8; background-color: rgba(150, 150, 150, 0.1); padding: 20px; border-radius: 10px; line-height: 1.6; margin-top: 50px; border: 1px solid rgba(150, 150, 150, 0.2); }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. つぶやきとキャラクター表示 ---
-monologue = [
-    "今のマーケット、AI的にはどうかな？", "長期投資は『気絶』して待つのも手だよ！",
-    "分散投資は基本！卵は分けて盛ろうね。", "ニュースの星が多い時はチャンスかも？",
-    "無理な取引はダメだよ。心に余裕を✨", "エヌビディアの勢い、凄いね…！"
-]
+# --- 3. つぶやき・キャラクター・チャット配置 ---
+# キャラクターの表示（背面）
+current_msg = random.choice([
+    "ボクをクリックして相談してね！", 
+    "投資の悩み、ボクが聞くよ！",
+    "今の相場、どう思う？",
+    "気になる銘柄、教えて！"
+])
+
 st.markdown(f"""
-    <div class="floating-char-container">
-        <div class="bubble">{random.choice(monologue)}</div>
-        <img src="{CHARACTER_URL}" class="char-img">
+    <div class="char-click-container">
+        <div class="bubble">{current_msg}</div>
+        <img src="{CHARACTER_URL}" class="char-img-clickable">
     </div>
     """, unsafe_allow_html=True)
 
-# --- 4. メインヘッダーと指標 ---
+# 透明なボタン（前面：クリックでチャット起動）
+with st.popover(""):
+    st.markdown("### 🤖 アイモン投資相談室")
+    if "messages" not in st.session_state: st.session_state.messages = []
+    chat_c = st.container(height=350)
+    for msg in st.session_state.messages: 
+        chat_c.chat_message(msg["role"]).markdown(msg["content"])
+    
+    if prompt := st.chat_input("アイモンに質問..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        chat_c.chat_message("user").markdown(prompt)
+        with chat_c.chat_message("assistant"):
+            try:
+                response = model_chat.generate_content(f"あなたは投資アドバイザーの『アイモン』です。友だちのように優しく答えて。質問：{prompt}")
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            except: st.error("エラーが発生しました。")
+    
+    if st.button("チャット履歴を消去"):
+        st.session_state.messages = []
+        st.rerun()
+
+# --- 4. メイン画面：市場指標 ---
 st.title("🤖 AIマーケット総合診断 Pro")
-st.caption("最新AIが市場を予測。右下のアイモンにいつでも相談してね！")
+st.caption("最新AIが市場を予測。右下のアイモンをタップしていつでも相談してね！")
 
 @st.cache_data(ttl=300)
 def get_market_indices():
@@ -118,9 +162,8 @@ def get_market_indices():
 idx_data = get_market_indices()
 m1, m2, m3 = st.columns(3)
 
-# ★関数の名前を統一（NameError対策）★
 def disp_m(col, lab, d, u=""):
-    if d[0]: col.metric(lab, f"{d[0]:,.2f}{u}", f"{d[1]:+,.2f}")
+    if d[0] is not None: col.metric(lab, f"{d[0]:,.2f}{u}", f"{d[1]:+,.2f}")
     else: col.metric(lab, "取得中...", "休止")
 
 disp_m(m1, "💴 ドル/円", idx_data['ドル円'], "円")
@@ -142,14 +185,14 @@ selected_names = st.multiselect("銘柄選択", list(all_stocks.keys()), default
 
 st.markdown("<div class='main-step'>STEP 2: 条件設定</div>", unsafe_allow_html=True)
 c1, c2 = st.columns(2)
-with c1: f_inv = st.number_input("金額(円)", min_value=1000, value=100000)
+with c1: f_inv = st.number_input("投資シミュレーション金額(円)", min_value=1000, value=100000)
 with c2: 
     time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "10年", "最大"], value="30日")
     span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","10年":"10y","最大":"max"}
 
 execute = st.button("🚀 AI診断スタート！")
 
-# 広告
+# 広告エリア
 st.markdown(f"""
 <div class="ad-container">
     <div class="ad-card">
@@ -173,7 +216,7 @@ if "sentiment_analyzer" not in st.session_state:
 
 if execute:
     results, plot_data = [], {}
-    with st.spinner('AI分析中...'):
+    with st.spinner('AIが市場データを解析中...'):
         for name in selected_names:
             try:
                 symbol = all_stocks[name]
@@ -226,23 +269,7 @@ if execute:
             for n in res['news']:
                 st.markdown(f"<div class='news-box'>{'⭐' * n['score']} <a href='{n['link']}' target='_blank'><b>🔗 {n['title']}</b></a></div>", unsafe_allow_html=True)
 
-# --- 7. 右下ポップオーバーチャット ---
-with st.popover("💬 アイモンに相談する"):
-    st.markdown("### 🤖 アイモン投資相談室")
-    if "messages" not in st.session_state: st.session_state.messages = []
-    chat_c = st.container(height=300)
-    for msg in st.session_state.messages: chat_c.chat_message(msg["role"]).markdown(msg["content"])
-    if prompt := st.chat_input("ここに質問を入力..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        chat_c.chat_message("user").markdown(prompt)
-        with chat_c.chat_message("assistant"):
-            try:
-                response = model_chat.generate_content(f"あなたは投資アドバイザーの『アイモン』です。友だちのように優しく答えて。質問：{prompt}")
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except: st.error("APIキーを確認してね！")
-
-# --- 8. 免責事項 ---
+# --- 7. 免責事項 ---
 st.markdown("""
     <div class="disclaimer-box">
         <b>⚠️ 免責事項</b><br>
