@@ -109,7 +109,7 @@ with ad_col2:
 
 st.markdown("---")
 
-# --- 6. 実行ロジック ---
+# --- 6. 実行ロジック（グラフと結果） ---
 if execute:
     results = []
     plot_data = {}
@@ -122,14 +122,14 @@ if execute:
                 if df.empty: continue
                 plot_data[name] = df
                 
-                # 予測
+                # 予測計算
                 current_price = float(df['Close'].iloc[-1])
                 y_reg = df['Close'].tail(20).values.reshape(-1, 1)
                 X_reg = np.arange(len(y_reg)).reshape(-1, 1)
                 model_lr = LinearRegression().fit(X_reg, y_reg)
                 pred_p = float(model_lr.predict([[len(y_reg)]])[0][0])
                 
-                # ニュース
+                # ニュース取得
                 is_j = ".T" in symbol
                 search_q = name.split("(")[-1].replace(")", "") if "自由入力" in name else (name if is_j else symbol)
                 url_news = f"https://news.google.com/rss/search?q={urllib.parse.quote(search_q)}&hl={'ja' if is_j else 'en'}&gl={'JP' if is_j else 'US'}"
@@ -145,16 +145,19 @@ if execute:
                     avg_stars = stars_sum / len(news_details)
                 else: avg_stars = 3
                 
-                # アドバイス
+                # アドバイス判定
                 trend_up = pred_p > current_price
                 if avg_stars >= 3.5 and trend_up: advice, color = "🌟【絶好調】勢いに乗っています！", "#e8f5e9"
                 elif avg_stars <= 2.5 and not trend_up: advice, color = "⚠️【警戒】今は静観が良さそうです。", "#ffebee"
                 else: advice, color = "😐【様子見】大きな動きを待っています。", "#f5f5f5"
 
                 results.append({"銘柄": name, "将来価値": future_investment * (pred_p / current_price), "評価": avg_stars, "pred": pred_p, "news": news_details, "symbol": symbol, "advice": advice, "color": color})
-            except: continue
+            except Exception as e:
+                st.error(f"{name}の分析中にエラーが発生しました: {e}")
+                continue
 
     if results:
+        # 1. グラフ表示
         st.subheader("📈 トレンド予測グラフ")
         fig, ax = plt.subplots(figsize=(10, 6))
         for name, data in plot_data.items():
@@ -163,55 +166,86 @@ if execute:
             line = ax.plot(data.index, norm_p, label=name, linewidth=2.5)
             res_item = next(r for r in results if r['銘柄'] == name)
             norm_pred = (res_item['pred'] / base_p) * 100
-            ax.scatter(data.index[-1] + timedelta(days=1), norm_pred, color=line[0].get_color(), marker='*', s=200)
+            ax.scatter(data.index[-1] + timedelta(days=1), norm_pred, color=line[0].get_color(), marker='*', s=200, edgecolors='black', zorder=10)
         
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2)
         plt.tight_layout()
         st.pyplot(fig)
- # 画像保存ボタン
+
+        # グラフ画像保存ボタン
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches='tight')
-        st.download_button(label="📈 予測グラフを画像として保存", data=buf.getvalue(), file_name="ai_prediction.png", mime="image/png")
+        st.download_button(
+            label="📈 予測グラフを画像として保存",
+            data=buf.getvalue(),
+            file_name="ai_market_prediction.png",
+            mime="image/png",
+            help="ダウンロードして𝕏に添付しましょう！"
+        )
 
-# --- 2. 診断詳細 ---
+        # 2. 診断詳細
         st.markdown("---")
         st.subheader("🏆 AI診断詳細")
         for res in results:
             with st.expander(f"📌 {res['銘柄']} の結果を見る", expanded=True):
-                # 差額を計算（予測額 - 投資金額）
+                # 変動額(delta)の計算
                 diff = res['将来価値'] - future_investment
-                
-                # st.metric に第3引数を追加して変動を表示
                 st.metric(
                     label="明日への予測額", 
                     value=f"{res['将来価値']:,.0f}円", 
                     delta=f"{diff:+,.0f}円"
                 )
                 
+                # アドバイス表示
                 st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
-                # ...（以下のニュース部分はそのまま）
-# --- 3. シェアボタン ---
+                
+                # ニュース表示の復活
+                st.write("**最新ニュースとAI評価:**")
+                if res['news']:
+                    for n in res['news']:
+                        stars = '⭐' * n['score']
+                        st.markdown(f"""
+                            <div class='news-box'>
+                                {stars}<br>
+                                <a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a>
+                            </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.write("ニュースが見つかりませんでした。")
+
+        # 3. シェアボタン
         st.markdown("---")
         st.subheader("📢 診断結果をシェアする")
         share_stock = selected_names[0] if selected_names else "注目銘柄"
-        share_text = urllib.parse.quote(f"AIが「{share_stock}」を診断しました！🤖📈 #米国株 #AI投資診断 #アイモン")
-        app_url = "https://your-app-url.streamlit.app/" # ★自分のURLに書き換え
+        share_text = urllib.parse.quote(f"AIが「{share_stock}」のトレンドを診断しました！🤖📈 #米国株 #AI投資診断 #アイモン")
+        app_url = "https://your-app-url.streamlit.app/" # ★自分のURLに書き換えてください
         share_url = f"https://twitter.com/intent/tweet?text={share_text}&url={app_url}"
         
-        st.components.v1.html(f'<a href="{share_url}" target="_blank"><button style="width: 100%; padding: 15px; background-color: #000000; color: white; border: none; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer;">𝕏 (Twitter) でシェアして応援する</button></a>', height=80)
+        st.components.v1.html(f"""
+            <a href="{share_url}" target="_blank">
+                <button style="width: 100%; padding: 15px; background-color: #000000; color: white; border: none; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; font-family: sans-serif;">
+                    𝕏 (Twitter) でシェアして応援する
+                </button>
+            </a>
+        """, height=80)
         
-        # インデントを左の「st.components...」と完璧に揃える
         st.info("""
         📢 **画像付きでシェアする方法：**
-        1. 上の『予測グラフを画像として保存』ボタンで画像をダウンロード
+        1. 上の『予測グラフを画像として保存』で画像をダウンロード
         2. 『𝕏 でシェア』ボタンを押し、投稿画面でその画像を貼り付けてね！
         """)
+        
+    else:
+        st.info("銘柄を選んでボタンを押してください。")
 
-# --- 7. 免責事項 ---
+# --- 7. 免責事項（常に最下部に表示） ---
 st.markdown("---")
 st.markdown("""
-    <div style="font-size: 0.8em; color: #666; background-color: #f1f3f5; padding: 20px; border-radius: 10px;">
-        <b>【免責事項】</b><br>投資の最終決定はご自身の判断で行ってください。本アプリの利用による損害について開発者は一切の責任を負いません。
+    <div style="font-size: 0.8em; color: #666; background-color: #f1f3f5; padding: 20px; border-radius: 10px; line-height: 1.6;">
+        <b>【免責事項】</b><br>
+        ● 本アプリの分析結果は情報の提供のみを目的としており、投資の勧誘を目的としたものではありません。投資の最終決定はご自身の判断で行ってください。<br>
+        ● 本アプリを利用したことにより生じたいかなる損害についても、開発者は一切の責任を負いません。
     </div>
-    <p style='text-align: center; color: #999; font-size: 0.7em; margin-top:10px;'>© 2026 AI Market Diagnosis Pro</p>
+    <br>
+    <p style='text-align: center; color: #999; font-size: 0.7em;'>© 2026 AI Market Diagnosis Pro - All Rights Reserved.</p>
 """, unsafe_allow_html=True)
