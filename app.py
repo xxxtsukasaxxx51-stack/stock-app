@@ -205,7 +205,9 @@ if execute:
                 else: advice, color = "😐【様子見】大きな動きを待っています。", "#f5f5f5"
 
                 results.append({"銘柄": name, "将来価値": future_investment * (pred_p / current_price), "評価": avg_stars, "pred": pred_p, "news": news_details, "symbol": symbol, "advice": advice, "color": color, "current": current_price})
-            except: continue
+            except Exception as e:
+                st.error(f"{name}の診断中にエラーが発生しました: {e}")
+                continue
 
     if results:
         # 1. グラフ表示
@@ -225,6 +227,18 @@ if execute:
         plt.tight_layout()
         st.pyplot(fig)
 
+        # --- 追加：グラフ保存ボタン ---
+        import io
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches='tight')
+        st.download_button(
+            label="📈 予測グラフを画像として保存",
+            data=buf.getvalue(),
+            file_name="ai_market_prediction.png",
+            mime="image/png",
+            help="画像を保存してX(Twitter)に添付しましょう！"
+        )
+
         # 2. 診断詳細
         st.markdown("---")
         st.subheader("🏆 AI診断詳細")
@@ -236,14 +250,12 @@ if execute:
                 for n in res['news']:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
 
-        # --- 3. シェアボタン（診断した時だけ表示） ---
+        # 3. シェアボタン
         st.markdown("---")
         st.subheader("📢 診断結果をシェアする")
-        
-        # 最初に選んだ銘柄名をシェアテキストに入れる
         share_stock = selected_names[0] if selected_names else "注目銘柄"
-        share_text = f"AIが「{share_stock}」の最新ニュースとトレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
-        app_url = "https://your-app-url.streamlit.app/" # ★ご自身のURLに書き換え
+        share_text = f"AIが「{share_stock}」の最新トレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
+        app_url = "https://your-app-url.streamlit.app/" # ★URLを自分のものに書き換え！
 
         s_text_quoted = urllib.parse.quote(share_text)
         s_url_quoted = urllib.parse.quote(app_url)
@@ -260,11 +272,12 @@ if execute:
                 </button>
             </a>
         """, height=80)
+        st.info("💡 保存したグラフ画像を添付してポストすると注目度が上がります！")
 
     else:
         st.info("銘柄を選んでボタンを押してください。")
 
-# --- 7. 免責事項（常に最下部に表示） ---
+# --- 7. 免責事項（最下部） ---
 st.markdown("---")
 st.markdown("""
     <div style="font-size: 0.8em; color: #666; background-color: #f1f3f5; padding: 20px; border-radius: 10px; line-height: 1.6;">
