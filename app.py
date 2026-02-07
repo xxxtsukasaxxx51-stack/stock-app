@@ -11,7 +11,8 @@ import random
 import japanize_matplotlib
 
 # --- 0. 基本設定 ---
-APP_URL = "https://your-app-name.streamlit.app/" 
+# 実際のアプリURLに書き換えてください
+APP_URL = "https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/" 
 
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
@@ -32,7 +33,7 @@ st.markdown("""
 
 st.title("🤖 AIマーケット総合診断 Pro")
 
-# --- 💡 アプリ解説セクション (復活) ---
+# --- 💡 アプリ解説セクション ---
 with st.expander("💡 感情指数と分析期間のヒント"):
     st.markdown("""
     ### 📊 感情指数（AI期待値）とは？
@@ -80,19 +81,16 @@ if st.button("🚀 AI診断スタート"):
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
                     if df.empty: continue
                     
-                    # 予測ロジック
                     y = df['Close'].values.flatten()
                     y_last = y[-20:] if len(y) >= 20 else y
                     X = np.arange(len(y_last)).reshape(-1, 1)
                     model = LinearRegression().fit(X, y_last)
                     
-                    # 5日後の予測価格
                     pred_price = float(model.predict(np.array([[len(y_last) + 5]]))[0])
                     curr_price = float(y[-1])
                     pred_ratio = pred_price / curr_price
                     stars = round(np.clip(3.0 + (pred_ratio - 1)*10, 1.5, 5.0), 1)
 
-                    # ニュース取得 (復活)
                     news_list = []
                     try:
                         feed = feedparser.parse(f"https://news.google.com/rss/search?q={symbol}&hl=ja&gl=JP&ceid=JP:ja")
@@ -114,7 +112,7 @@ if st.button("🚀 AI診断スタート"):
         if results:
             st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
             
-            # --- 📈 グラフ (予測地点に星⭐をプロット) ---
+            # --- 📈 グラフ ---
             fig, ax = plt.subplots(figsize=(10, 5))
             fig.patch.set_alpha(0.0)
             ax.patch.set_alpha(0.0)
@@ -125,14 +123,11 @@ if st.button("🚀 AI診断スタート"):
                 line = (d['Close'] / base) * 100
                 p = ax.plot(d.index, line, label=f"{s} (⭐{info['stars']})", linewidth=2)
                 
-                # 5日後の予測地点をプロット
                 last_date = d.index[-1]
                 future_date = last_date + timedelta(days=5)
                 future_val = line.iloc[-1] * info["pred_ratio"]
                 
-                # 現在地から予測地への点線
                 ax.plot([last_date, future_date], [line.iloc[-1], future_val], color=p[0].get_color(), linestyle='--', alpha=0.6)
-                # 予測地点に星⭐
                 ax.scatter(future_date, future_val, marker='*', s=250, color=p[0].get_color(), edgecolors='black', zorder=5)
 
             ax.set_ylabel("成長率 (%)")
@@ -141,7 +136,7 @@ if st.button("🚀 AI診断スタート"):
             st.pyplot(fig)
 
             # --- 💰 PR広告 ---
-            st.markdown("""<div class="ad-section"><span class="ad-badge">PR</span><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank" class="ad-link">【DMM 株】最短即日で口座開設！取引手数料も業界最安水準</a></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="ad-section"><span class="ad-badge">PR</span><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank" class="ad-link">【DMM 株】最短即日で口座開設！取引手数料も業界最安水準</a></div>""", unsafe_allow_html=True)
 
             for res in results:
                 st.markdown(f"### 🎯 {res['name']} ({res['symbol']})")
@@ -149,14 +144,27 @@ if st.button("🚀 AI診断スタート"):
                 r1.metric(f"5日後の予想資産 ({res['period']})", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
                 r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (AI期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
                 
-                # ニュース表示 (復活)
                 if res['news']:
                     for n in res['news']:
                         st.markdown(f"<div class='news-card'><span class='news-stars'>⭐{n['star']}</span><a href='{n['link']}' target='_blank' style='text-decoration:none;color:inherit;'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
-                # X投稿
-                share_text = (f"📈 【AIマーケット診断 Pro】\n━━━━━━━━━━━━━━\n🎯 企業：{res['name']} ({res['symbol']})\n🔍 期待値：⭐{res['stars']}\n📢 判定：{res['adv']}\n🚀 予想：{res['future']:,.0f}円\n━━━━━━━━━━━━━━\n{APP_URL}")
-                st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
+                # --- X投稿メッセージの構築 ---
+                share_text = (
+                    f"📈 【AIマーケット診断 Pro】\n"
+                    f"━━━━━━━━━━━━━━\n"
+                    f"🎯 企業：{res['name']} ({res['symbol']})\n"
+                    f"🔍 期間：{res['period']}分析\n"
+                    f"💰 投資：{res['invest']:,.0f}円\n"
+                    f"✨ 期待値：⭐{res['stars']}\n"
+                    f"📢 判定：{res['adv']}\n"
+                    f"🚀 5日後の予想：{res['future']:,.0f}円\n"
+                    f"━━━━━━━━━━━━━━\n"
+                    f"AIが最新ニュースとトレンドを解析！\n"
+                    f"https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/"
+                )
+
+                # ボタンの表示 (インデントを修正)
+                st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果を詳細にポストする</a>', unsafe_allow_html=True)
                 st.divider()
 
 st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づくシミュレーションであり、将来の成果を保証しません。判断は自己責任で。</div>', unsafe_allow_html=True)
