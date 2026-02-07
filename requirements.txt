@@ -5,7 +5,7 @@ pandas
 matplotlib
 japanize-matplotlib
 transformers
-torch
 scikit-learn
-deep-translator
-numpy
+google-generativeai
+deep_translator
+torch
