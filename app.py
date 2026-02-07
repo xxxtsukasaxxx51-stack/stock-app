@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import feedparser
-import pd
+import pandas as pd  # ← ここを修正しました（pdではなくpandasをimport）
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from transformers import pipeline
@@ -18,7 +18,7 @@ CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Ge
 INVESTMENT_QUOTES = [
     "「木を見て森を見ず」にならないように、期間を変えてチェックしよう！",
     "「短期は感情、長期は理屈」で動くのが相場の常だよ。",
-    "「どの期間で戦うか」を決めることが、投資の第一歩だね。"
+    "「分散投資」は、投資の世界で唯一のフリーランチ（タダ飯）だよ。"
 ]
 
 # --- 1. ページ設定 ---
@@ -38,7 +38,6 @@ st.markdown(f"""
     .welcome-box {{ background-color: #f0f7ff; padding: 20px; border-radius: 15px; border: 1px solid #3182ce; margin-bottom: 25px; }}
     .feature-tag {{ background: #3182ce; color: white; padding: 2px 10px; border-radius: 5px; font-size: 0.8em; margin-right: 5px; }}
     .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 15px; border-left: 5px solid #3182ce; padding-left: 10px; }}
-    /* Xシェアボタンのデザイン */
     .x-share-button {{
         display: inline-block; background-color: #000000; color: white !important; 
         padding: 8px 18px; border-radius: 20px; text-decoration: none; 
@@ -60,8 +59,9 @@ st.markdown(f"""
 # --- 4. 銘柄リスト & 名前クリーンアップ ---
 STOCK_PRESETS = {
     "🇺🇸 エヌビディア (AI半導体)": "NVDA", "🇺🇸 テスラ (電気自動車)": "TSLA", "🇺🇸 アップル (iPhone)": "AAPL",
+    "🇺🇸 マイクロソフト (AI/OS)": "MSFT", "🇺🇸 アマゾン (EC)": "AMZN", "🇺🇸 アルファベット (Google)": "GOOGL",
     "🇯🇵 トヨタ自動車 (世界一)": "7203.T", "🇯🇵 ソニーG (エンタメ)": "6758.T", "🇯🇵 ソフトバンクG (投資)": "9984.T",
-    "🇯🇵 三菱UFJ銀 (金融)": "8306.T", "🇯🇵 任天堂 (ゲーム)": "7974.T"
+    "🇯🇵 任天堂 (ゲーム)": "7974.T", "🇯🇵 三菱UFJ銀 (金融)": "8306.T", "🇯🇵 キーエンス (高収益)": "6861.T"
 }
 
 def clean_stock_name(name):
@@ -82,13 +82,11 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 【追加】分析期間についての解説
 with st.expander("💡 分析期間を変えると結果が変わるのはなぜ？"):
     st.write("""
     投資の目的（ゴール）によって、AIが見るべきデータが異なるからです。
-    - **「1週間/30日」を選んだ場合**: AIは「今の勢い（トレンド）」を重視します。デイトレードや短期投資の参考になります。
-    - **「5年/全期間」を選んだ場合**: AIは「その銘柄が本来持っている成長力」を重視します。数年単位の長期投資の参考になります。
-    **「短期では下がると出ているが、長期では上がる」**といった違いを見つけるのが、賢い診断のコツです！
+    - **「1週間/30日」を選んだ場合**: AIは「今の勢い（トレンド）」を重視します。短期的な投資の参考になります。
+    - **「5年/全期間」を選んだ場合**: AIは「その銘柄が本来持っている成長力」を重視します。長期的な資産形成の参考になります。
     """)
 
 with st.expander("⭐ 「星の指標（AI感情分析）」とは？"):
@@ -102,7 +100,7 @@ c_in1, c_in2 = st.columns([2, 1])
 selected_names = c_in1.multiselect("リストから選ぶ", list(STOCK_PRESETS.keys()), default=["🇺🇸 エヌビディア (AI半導体)"])
 f_inv = c_in2.number_input("シミュレーション金額(円)", min_value=1000, value=100000, step=10000)
 
-time_span = st.select_slider("分析する期間を選択（上の説明もチェック！）", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="全期間(Max)")
+time_span = st.select_slider("分析する期間を選択", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="全期間(Max)")
 span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","全期間(Max)":"max"}
 
 # 実行
@@ -179,8 +177,8 @@ if st.session_state.results:
         c_res1.metric(f"{res['pred_date']} 予想額", f"{res['将来']:,.0f}円", f"{res['gain']:+,.0f}円")
         c_res2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']}</div>", unsafe_allow_html=True)
         
-        # X（旧Twitter）シェアボタン
-        share_text = f"【AI株診断】\n銘柄: {res['銘柄']}\n期間: {res['period_label']}\n判定: {res['adv']}\n5日後の予想資産: {res['将来']:,.0f}円！\n#AIマーケット診断 #資産運用"
+        # Xシェアボタン
+        share_text = f"【AI株診断】\n銘柄: {res['銘柄']}\n判定: {res['adv']}\n5日後の予想: {res['将来']:,.0f}円！\n#AIマーケット診断"
         x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}"
         st.markdown(f'<a href="{x_url}" target="_blank" class="x-share-button">𝕏 この結果をポストする</a>', unsafe_allow_html=True)
 
@@ -190,4 +188,4 @@ if st.session_state.results:
 
 # 広告・免責
 st.markdown("""<div class="ad-container"><div class="ad-card"><p>📊 証券口座なら</p><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">DMM 株 [PR]</a></div><div class="ad-card"><p>📱 投資アプリなら</p><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">TOSSY [PR]</a></div></div>""", unsafe_allow_html=True)
-st.markdown("<div class='disclaimer-box'>【免責】予想額はトレンドに基づく算出であり将来を保証しません。投資は自己責任でお願いします。</div>", unsafe_allow_html=True)
+st.markdown("<div class='disclaimer-box'>【免責】予想額は過去のトレンドに基づくシミュレーションであり、将来を保証しません。最終的な投資判断は必ずご自身で行ってください。[PR]</div>", unsafe_allow_html=True)
