@@ -168,20 +168,28 @@ if execute:
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2)
         plt.tight_layout()
         st.pyplot(fig)
-
-        # 画像保存ボタン
+ # 画像保存ボタン
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches='tight')
         st.download_button(label="📈 予測グラフを画像として保存", data=buf.getvalue(), file_name="ai_prediction.png", mime="image/png")
 
+# --- 2. 診断詳細 ---
         st.markdown("---")
         st.subheader("🏆 AI診断詳細")
         for res in results:
             with st.expander(f"📌 {res['銘柄']} の結果を見る", expanded=True):
-                st.metric("明日への予測額", f"{res['将来価値']:,.0f}円")
+                # 差額を計算（予測額 - 投資金額）
+                diff = res['将来価値'] - future_investment
+                
+                # st.metric に第3引数を追加して変動を表示
+                st.metric(
+                    label="明日への予測額", 
+                    value=f"{res['将来価値']:,.0f}円", 
+                    delta=f"{diff:+,.0f}円"
+                )
+                
                 st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
-                for n in res['news']:
-                    st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a></div>", unsafe_allow_html=True)
+                # ...（以下のニュース部分はそのまま）
 # --- 3. シェアボタン ---
         st.markdown("---")
         st.subheader("📢 診断結果をシェアする")
