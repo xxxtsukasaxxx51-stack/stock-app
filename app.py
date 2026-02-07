@@ -69,7 +69,7 @@ if st.sidebar.button("分析を実行"):
             results.append({
                 "銘柄": name,
                 "現在価格": round(last_price, 2),
-                "AI予測(明日)": round(float(pred_price), 2),
+                "AI予測(明日)": round(float(np.array(pred_price).flatten()[0]), 2),
                 "期待値(%)": round(diff_pct, 2),
                 "ニュース評価": f"{avg_stars:.1f} ★",
                 "score": diff_pct + (avg_stars - 3)
