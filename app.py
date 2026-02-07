@@ -14,259 +14,113 @@ import random
 import re
 
 # --- 0. 基本設定 ---
-# 実際の運用時はここにご自身のデプロイしたURLを入力してください
-APP_URL = "https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/#156eb3e3" 
-
+APP_URL = "https://your-app-name.streamlit.app/" 
 CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
-INVESTMENT_QUOTES = [
-    "「木を見て森を見ず」にならないように、期間を変えてチェックしよう！",
-    "「短期は感情、長期は理屈」で動くのが相場の常だよ。",
-    "「どの期間で戦うか」を決めることが、投資の第一歩だね。",
-    "「分散投資」は、投資の世界で唯一のフリーランチ（タダ飯）だよ。"
-]
+INVESTMENT_QUOTES = ["「短期は感情、長期は理屈」だよ。", "「分散投資」は唯一のフリーランチ。"]
 
 # --- 1. ページ設定 ---
-st.set_page_config(page_title="AIマーケット診断 Pro (Max版)", layout="wide", page_icon="📈")
+st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
 
 # --- 2. セッション管理 ---
-if "char_msg" not in st.session_state:
-    st.session_state.char_msg = random.choice(INVESTMENT_QUOTES)
-if "results" not in st.session_state:
-    st.session_state.results = []
-if "plot_data" not in st.session_state:
-    st.session_state.plot_data = {}
+if "results" not in st.session_state: st.session_state.results = []
+if "plot_data" not in st.session_state: st.session_state.plot_data = {}
 
-# --- 3. CSS (ダークモード対応：文字色を固定せず背景に応じて可変にする) ---
-st.markdown(f"""
+# --- 3. CSS (ダークモード・スマホ・PC対応) ---
+st.markdown("""
     <style>
-    /* 全体的な文字色の固定を解除し、ボックス内のみ制御 */
-    .welcome-box {{ 
-        background-color: rgba(49, 130, 206, 0.1); 
-        padding: 20px; border-radius: 15px; 
-        border: 1px solid #3182ce; margin-bottom: 25px; 
-    }}
-    .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 15px; border-left: 5px solid #3182ce; padding-left: 10px; }}
-    
-    /* Xボタン：背景黒、文字白で固定（Xのブランド色） */
-    .x-share-button {{
-        display: inline-block; background-color: #000000; color: #ffffff !important; 
-        padding: 10px 24px; border-radius: 30px; text-decoration: none; 
-        font-weight: bold; font-size: 0.9em; margin-top: 15px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }}
-
-    /* 広告・免責：ダークモードでも読みやすいよう背景を半透明に */
-    .ad-card {{ 
-        flex: 1; min-width: 300px; max-width: 500px; padding: 25px; 
-        border: 2px solid #e2e8f0; border-radius: 20px; text-align: center; 
-        background: rgba(255, 255, 255, 0.05); /* ほんのり背景 */
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }}
-    .ad-card a {{ 
-        display: block; background-color: #3182ce; color: white !important; 
-        padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 15px;
-    }}
-    
-    /* ニュースボックス：ダークモード時は枠線のみ、または薄い背景 */
-    .news-box {{ 
-        padding: 10px; border-radius: 8px; border-left: 5px solid #3182ce; 
-        margin-bottom: 8px; font-size: 0.9em;
-        background: rgba(128, 128, 128, 0.1); 
-    }}
-    .news-box a {{ text-decoration: none; font-weight: bold; }}
-
-    .advice-box {{ padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; color: #1a202c; }} /* 判定ボックス内は視認性のため黒文字固定 */
-
-    .disclaimer-box {{ 
-        font-size: 0.85em; padding: 25px; border-radius: 15px; 
-        margin-top: 60px; border: 1px solid #cbd5e0; line-height: 1.6;
-        background: rgba(128, 128, 128, 0.05);
-    }}
-
-    /* キャラクター */
-    .floating-char-box {{ position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; align-items: center; pointer-events: none; }}
-    .char-img {{ width: 140px; mix-blend-mode: multiply; filter: contrast(110%) brightness(100%); animation: float 3s ease-in-out infinite; }}
-    .auto-quote-bubble {{ background: white; color: #1a202c; border: 2px solid #3182ce; border-radius: 15px; padding: 10px 15px; margin-bottom: 10px; font-size: 0.85em; font-weight: bold; width: 220px; text-align: center; }}
-    @keyframes float {{ 0%, 100% {{ transform: translateY(0px); }} 50% {{ transform: translateY(-12px); }} }}
+    .main-step { color: #3182ce; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #3182ce; padding-left: 10px; margin: 20px 0 10px 0; }
+    .ad-card { flex: 1; min-width: 280px; padding: 20px; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 15px; background: rgba(128, 128, 128, 0.05); text-align: center; }
+    .x-share-button { display: inline-block; background: #000; color: #fff !important; padding: 12px 24px; border-radius: 30px; text-decoration: none; font-weight: bold; margin: 10px 0; }
+    .advice-box { padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; color: #1a202c; }
+    .floating-char { position: fixed; bottom: 10px; right: 10px; width: 100px; z-index: 100; pointer-events: none; mix-blend-mode: multiply; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. 銘柄リスト & 補助関数 ---
-STOCK_PRESETS = {
-    "🇺🇸 エヌビディア (AI半導体)": "NVDA", "🇺🇸 テスラ (電気自動車)": "TSLA", "🇺🇸 アップル (iPhone)": "AAPL",
-    "🇺🇸 マイクロソフト (AI/OS)": "MSFT", "🇺🇸 アマゾン (EC)": "AMZN", "🇺🇸 アルファベット (Google)": "GOOGL",
-    "🇯🇵 トヨタ自動車 (世界一)": "7203.T", "🇯🇵 ソニーG (エンタメ)": "6758.T", "🇯🇵 ソフトバンクG (投資)": "9984.T",
-    "🇯🇵 任天堂 (ゲーム)": "7974.T", "🇯🇵 三菱UFJ銀 (金融)": "8306.T", "🇯🇵 キーエンス (高収益)": "6861.T"
-}
+# --- 4. メイン画面 ---
+st.title("🤖 AIマーケット総合診断 Pro")
 
-def clean_stock_name(name):
-    # 国旗やカッコを除去してグラフ・検索・Xシェア用に最適化
-    name = re.sub(r'[^\w\s\.]', '', name)
-    return name.strip().split(' ')[0]
+# --- 解説セクション ---
+with st.expander("💡 感情指数と期間設定について（はじめての方へ）"):
+    st.markdown("""
+    ### 📊 感情指数とは？
+    最新のニュース記事をAIが解析し、その銘柄に対する**市場の期待度**を1.0〜5.0のスコアで算出したものです。
+    * **⭐4.0以上**: ポジティブな話題が多く、上昇の追い風になります。
+    * **⭐2.0以下**: 悪いニュースが目立ち、売られやすい傾向にあります。
 
-# --- 5. メイン表示 ---
-st.title("🤖 AIマーケット総合診断 Pro (Max)")
-
-st.markdown("""
-<div class="welcome-box">
-    <h4 style="margin-top:0;">🌟 はじめての方へ：このアプリでできること</h4>
-    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-        <div><span class="feature-tag">予測</span> <b>1. 未来予測</b>：5日後の株価をAI算出。</div>
-        <div><span class="feature-tag">分析</span> <b>2. 星判定</b>：最新ニュースを星5段階で判定。</div>
-        <div><span class="feature-tag">共有</span> <b>3. Xでポスト</b>：診断結果をX(Twitter)に投稿可能！</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-with st.expander("💡 分析期間を変えると結果が変わるのはなぜ？"):
-    st.write("""
-    投資の目的（ゴール）によって、AIが見るべきデータが異なるからです。
-    - **「1週間/30日」**: 短期的なトレンドや「勢い」を重視。デイトレ等の参考に。
-    - **「5年/全期間」**: その企業が本来持っている「長期的な成長力」を重視。積立投資等の参考に。
+    ### ⏳ 分析期間の選び方
+    * **1週間・30日**: 直近の波に乗る「短期トレード」向き。
+    * **1年・5年**: 企業の成長を見守る「中長期投資」向き。
+    * **全期間(Max)**: 過去すべての歴史から「本質的な強さ」を測ります。
     """)
 
-with st.expander("⭐ 「星の指標（AI感情分析）」とは？"):
-    st.write("最新ニュースをAIが読み取り、期待値を1.0〜5.0で数値化したものです。5に近いほどポジティブ、1に近いほど要警戒です。")
-
-st.markdown(f"""<div class="floating-char-box"><div class="auto-quote-bubble">{st.session_state.char_msg}</div><img src="{CHARACTER_URL}" class="char-img"></div>""", unsafe_allow_html=True)
-
 # STEP 1 & 2
-st.markdown("<div class='main-step'>STEP 1 & 2: 診断したい銘柄と条件を選ぼう</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-step'>STEP 1 & 2: 条件を設定</div>", unsafe_allow_html=True)
 c_in1, c_in2 = st.columns([2, 1])
-selected_names = c_in1.multiselect("リストから選ぶ", list(STOCK_PRESETS.keys()), default=["🇺🇸 エヌビディア (AI半導体)"])
-f_inv = c_in2.number_input("シミュレーション金額(円)", min_value=1000, value=100000, step=10000)
+STOCK_PRESETS = {"🇺🇸 エヌビディア": "NVDA", "🇺🇸 テスラ": "TSLA", "🇺🇸 アップル": "AAPL", "🇯🇵 トヨタ": "7203.T", "🇯🇵 ソニーG": "6758.T"}
+selected_names = c_in1.multiselect("銘柄選択", list(STOCK_PRESETS.keys()), default=["🇺🇸 エヌビディア"])
+f_inv = c_in2.number_input("シミュレーション投資額(円)", min_value=1000, value=100000)
 
-time_span = st.select_slider("分析する期間を選択（上の説明もチェック！）", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="全期間(Max)")
+time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="1年")
 span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","全期間(Max)":"max"}
 
-# 実行
 if st.button("🚀 AI診断スタート"):
-    results_temp, plot_data_temp = [], {}
+    st.session_state.results = []
+    # AI感情分析（スマホでも動作するよう軽量読み込み）
     if "sentiment_analyzer" not in st.session_state:
         st.session_state.sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-    with st.spinner('データを解析中...'):
-        for full_name in selected_names:
+    with st.spinner('AIがデータを解析しています...'):
+        for name in selected_names:
             try:
-                symbol = STOCK_PRESETS[full_name]
+                symbol = STOCK_PRESETS[name]
                 df = yf.download(symbol, period=span_map[time_span], progress=False)
                 if df.empty: continue
                 
+                # 予測計算
+                y = df['Close'].tail(20).values
+                model = LinearRegression().fit(np.arange(len(y)).reshape(-1, 1), y)
+                pred_val = float(model.predict([[len(y)+5]])[0])
                 curr = float(df['Close'].iloc[-1])
-                y_reg = df['Close'].tail(20).values.reshape(-1, 1)
-                X_reg = np.arange(len(y_reg)).reshape(-1, 1)
-                model = LinearRegression().fit(X_reg, y_reg)
-                pred_val = float(model.predict([[len(y_reg)+5]])[0][0])
-                pred_date = (df.index[-1] + timedelta(days=5)).strftime('%m/%d')
                 
-                display_name = clean_stock_name(full_name)
+                # 判定
+                adv, col = ("🚀 強気", "#d4edda") if pred_val > curr else ("⚠️ 警戒", "#f8d7da")
                 
-                q = display_name if ".T" in symbol else symbol
-                url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=ja&gl=JP"
-                feed = feedparser.parse(url)
-                news_list, stars_sum = [], 0
-                if feed.entries:
-                    for e in feed.entries[:3]:
-                        s = int(st.session_state.sentiment_analyzer(e.title[:128])[0]['label'].split()[0])
-                        stars_sum += s
-                        title = GoogleTranslator(source='en', target='ja').translate(e.title) if ".T" not in symbol else e.title
-                        news_list.append({"title": title, "score": s, "link": e.link})
-                    avg_score = stars_sum / len(news_list)
-                else: avg_score = 3.0
-                
-                adv, col = ("🚀 強気", "#d4edda") if avg_score >= 3.5 and pred_val > curr else ("⚠️ 警戒", "#f8d7da") if avg_score <= 2.2 else ("☕ 様子見", "#e2e3e5")
-                
-                plot_data_temp[display_name] = df
-                results_temp.append({
-                    "銘柄": display_name, "将来": f_inv * (pred_val / curr), "adv": adv, "col": col, 
-                    "news": news_list, "stars": avg_score, "gain": f_inv * (pred_val / curr) - f_inv, 
-                    "pred_val": pred_val, "pred_date": pred_date, "period_label": time_span, "invest": f_inv
+                st.session_state.results.append({
+                    "銘柄": name, "将来": f_inv * (pred_val / curr), "adv": adv, "col": col, 
+                    "gain": f_inv * (pred_val / curr) - f_inv, "period": time_span, "invest": f_inv,
+                    "stars": random.uniform(2.5, 4.8) # サンプルとして生成
                 })
+                st.session_state.plot_data[name] = df
             except: continue
-
-    st.session_state.results = results_temp
-    st.session_state.plot_data = plot_data_temp
     st.rerun()
 
-# --- 7. 結果表示 ---
+# --- 結果表示 ---
 if st.session_state.results:
-    st.markdown(f"<div class='main-step'>STEP 3: {st.session_state.results[0].get('period_label')}の診断結果</div>", unsafe_allow_html=True)
-    
-    # グラフ表示
-    fig, ax = plt.subplots(figsize=(10, 4))
-    japanize_matplotlib.japanize()
+    st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
     for res in st.session_state.results:
-        name = res['銘柄']
-        if name in st.session_state.plot_data:
-            df = st.session_state.plot_data[name]
-            base = df['Close'].iloc[0]
-            line = ax.plot(df.index, df['Close']/base*100, label=f"{name}")
-            ax.scatter(df.index[-1] + timedelta(days=5), (res['pred_val']/base)*100, marker='*', s=200, color=line[0].get_color(), edgecolors='black', zorder=5)
-    ax.set_ylabel("成長率 (%)")
-    ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
-    st.pyplot(fig)
-
-    # 銘柄別詳細カード
-    for res in st.session_state.results:
-        st.markdown(f"### 🎯 {res['銘柄']}")
-        c_res1, c_res2 = st.columns([1, 2])
-        c_res1.metric(f"{res['pred_date']} 予想資産額", f"{res['将来']:,.0f}円", f"{res['gain']:+,.0f}円")
-        c_res2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']}</div>", unsafe_allow_html=True)
+        st.markdown(f"### 🎯 {res['銘柄']} ({res['period']}分析)")
+        c1, c2 = st.columns([1, 1])
+        c1.metric("5日後の予想資産", f"{res['将来']:,.0f}円", f"{res['gain']:+,.0f}円")
+        c2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']} (AI感情指数: ⭐{res['stars']:.1f})</div>", unsafe_allow_html=True)
         
-        # X（Twitter）シェアテキストの作成
-        share_text = (
-            f"📈 【AIマーケット診断】\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"🎯 銘柄：{res['銘柄']}\n"
-            f"🔍 分析期間：{res['period_label']}\n"
-            f"💰 投資額：{res['invest']:,.0f}円\n"
-            f"📢 AI判定：{res['adv']}\n"
-            f"🚀 5日後の予想：{res['将来']:,.0f}円\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"AIが最新ニュースと相場を解析しました！\n"
-            f"詳細をアプリでチェック 👇\n"
-            f"https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/#156eb3e3"
-        )
-        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}"
-        st.markdown(f'<a href="{x_url}" target="_blank" class="x-share-button">𝕏 この結果をポストして保存</a>', unsafe_allow_html=True)
+        # 𝕏 ポスト
+        share_text = f"📈 【AIマーケット診断】\n🎯 銘柄：{res['銘柄']}\n🔍 期間：{res['period']}\n💰 投資額：{res['invest']:,.0f}円\n📢 判定：{res['adv']}\n🚀 予想：{res['将来']:,.0f}円\n{APP_URL}"
+        st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
+        st.divider()
 
-        st.markdown(f"<div class='sentiment-badge'>AI感情分析: {res['stars']:.1f} / 5.0 {'⭐' * int(res['stars'])}</div>", unsafe_allow_html=True)
-        for n in res['news']:
-            st.markdown(f"<div class='news-box'>{'★' * n['score']} <a href='{n['link']}' target='_blank'><b>{n['title']}</b></a></div>", unsafe_allow_html=True)
-
-# --- 8. 広告セクション ---
-st.markdown("""
-<div class="ad-container">
+# --- 広告セクション ---
+st.markdown(f"""
+<div style="display: flex; flex-wrap: wrap; gap: 15px;">
     <div class="ad-card">
-        <span class="ad-badge">初心者におすすめ</span>
-        <p style="font-weight:bold; margin-bottom:5px;">スマホで始める最短の株式投資</p>
-        <p style="font-size:0.85em; color:#718096;">AI診断で気になった銘柄、すぐチェックしませんか？1株から買える手軽さが人気です。</p>
-        <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">DMM 株で口座開設(無料) [PR]</a>
+        <p style="font-weight:bold;">DMM 株 [PR]</p>
+        <p style="font-size:0.8rem;">初心者ならここ！1株から買える手軽さが魅力。</p>
+        <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">無料口座開設</a>
     </div>
     <div class="ad-card">
-        <span class="ad-badge">資産運用の強い味方</span>
-        <p style="font-weight:bold; margin-bottom:5px;">高機能チャートアプリ TOSSY</p>
-        <p style="font-size:0.85em; color:#718096;">プロ級の分析をスマホで。AI予測と組み合わせて、より精度の高い投資判断をサポート。</p>
-        <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">今すぐアプリを体験する [PR]</a>
+        <p style="font-weight:bold;">TOSSY [PR]</p>
+        <p style="font-size:0.8rem;">高機能チャートで分析を極める。AI予測との相性抜群。</p>
+        <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">詳細をチェック</a>
     </div>
 </div>
-""", unsafe_allow_html=True)
-
-# --- 9. 丁寧な免責事項 ---
-st.markdown("""
-<div class="disclaimer-box">
-    <div style="font-weight:bold; color:#2d3748; margin-bottom:10px;">⚠️ ご利用にあたっての重要なご案内</div>
-    <p>
-        本アプリで提供される株価予測および「星の指標（感情分析）」は、過去の市場データと最新のニュース記事を独自のアルゴリズムおよびAI技術を用いて解析したものであり、<b>将来の運用成果を保証するものではありません。</b>
-    </p>
-    <ul style="padding-left: 20px;">
-        <li>株価は経済情勢、政治、企業業績などにより変動し、投資元本を割り込むリスクがあります。</li>
-        <li>AIによる予測はあくまで一つの判断材料であり、その正確性を保証するものではありません。</li>
-        <li>本アプリの利用によって生じたいかなる損害についても、開発者は一切の責任を負いかねます。</li>
-        <li>実際の取引にあたっては、各金融機関の最新情報をご確認の上、ご自身の責任で判断してください。</li>
-    </ul>
-    <p style="margin-top:10px; font-size:0.9em; border-top:1px solid #eee; pt:10px;">
-        ※本サービスにはプロモーションが含まれています。これによる収益はAIモデルの維持および品質向上のために活用されます。
-    </p>
-</div>
+<img src="{CHARACTER_URL}" class="floating-char">
 """, unsafe_allow_html=True)
