@@ -251,7 +251,37 @@ st.write("AIによる診断結果は...")
 # 2. 免責事項
 st.caption("免責事項：本アプリの情報は投資勧誘を目的としたものではありません。投資の最終決定はご自身の判断で...")
 
-# 3. ここにシェアボタンを置く！
-st.markdown("---")
-st.markdown("### 📢 診断結果をシェアする")
-# （ここに先ほどのシェアボタンのコード）
+# --- 免責事項の表示（既にあるコードの下に） ---
+        st.caption("免責事項：本アプリの情報は投資勧誘を目的としたものではありません。投資の最終決定はご自身の判断で行ってください。")
+
+        # --- ここから追加：確実に動くシェアボタン ---
+        import urllib.parse
+        
+        # 変数名が symbol でない場合は、'symbol' を実際の入力変数名に変えてください
+        target_name = locals().get('symbol', '注目銘柄')
+        share_text = f"AIが「{target_name}」の最新ニュースと価格トレンドを診断しました！🤖📈 #米国株 #AI投資診断 #アイモン"
+        app_url = "https://your-app-url.streamlit.app/" # ★ご自身のURL
+
+        s_text_quoted = urllib.parse.quote(share_text)
+        s_url_quoted = urllib.parse.quote(app_url)
+        share_url = f"https://twitter.com/intent/tweet?text={s_text_quoted}&url={s_url_quoted}"
+
+        # HTMLを使って確実に別タブで開くボタンを作成
+        st.components.v1.html(f"""
+            <a href="{share_url}" target="_blank">
+                <button style="
+                    width: 100%;
+                    padding: 12px;
+                    background-color: #000000;
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    font-family: sans-serif;
+                ">
+                    𝕏 (Twitter) で診断結果をシェア
+                </button>
+            </a>
+        """, height=60)
