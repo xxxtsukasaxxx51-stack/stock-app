@@ -142,17 +142,36 @@ st.markdown(f"<div class='span-hint'>{span_hints[time_span]}<br>※期間を長�
 
 execute = st.button("🚀 AI診断スタート！")
 
-# --- 広告エリア ---
+# --- 広告エリア（スマホ・PC両対応版） ---
 st.markdown("---")
 st.write("### 💡 おすすめ投資サービス")
 link_dmm = "https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY"
 link_tossy = "https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y"
 
-ad_col1, ad_col2 = st.columns(2)
-with ad_col1:
-    st.markdown(f'<div class="ad-card"><p style="font-weight: bold;">📊 証券口座なら</p><a href="{link_dmm}" target="_blank" rel="nofollow" style="text-decoration: none; color: #4dabf7; font-weight: bold;">DMM 株 で口座開設</a><p style="font-size: 0.7em; opacity: 0.7;">[広告：PR]</p></div>', unsafe_allow_html=True)
-with ad_col2:
-    st.markdown(f'<div class="ad-card"><p style="font-weight: bold;">📱 投資アプリなら</p><a href="{link_tossy}" target="_blank" rel="nofollow" style="text-decoration: none; color: #51cf66; font-weight: bold;">ウルトラ投資アプリ【TOSSY】</a><p style="font-size: 0.7em; opacity: 0.7;">[広告：PR]</p></div>', unsafe_allow_html=True)
+# カラムを使わず、一つ一つの広告を独立したdivで並べることで
+# スマホでもPCでも適切な幅で表示されるようになります
+st.markdown(f"""
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;">
+        <div style="flex: 1; min-width: 300px; margin-bottom: 10px;">
+            <div class="ad-card">
+                <p style="font-weight: bold; margin-bottom: 5px;">📊 証券口座なら</p>
+                <a href="{link_dmm}" target="_blank" rel="nofollow" style="text-decoration: none; color: #4dabf7; font-weight: bold;">
+                    <div style="padding: 10px; border: 1px dashed #4dabf7; border-radius: 5px; margin-bottom: 5px;">DMM 株 で口座開設</div>
+                </a>
+                <p style="font-size: 0.7em; opacity: 0.7;">[広告：PR]</p>
+            </div>
+        </div>
+        <div style="flex: 1; min-width: 300px; margin-bottom: 10px;">
+            <div class="ad-card">
+                <p style="font-weight: bold; margin-bottom: 5px;">📱 投資アプリなら</p>
+                <a href="{link_tossy}" target="_blank" rel="nofollow" style="text-decoration: none; color: #51cf66; font-weight: bold;">
+                    <div style="padding: 10px; border: 1px dashed #51cf66; border-radius: 5px; margin-bottom: 5px;">ウルトラ投資アプリ【TOSSY】</div>
+                </a>
+                <p style="font-size: 0.7em; opacity: 0.7;">[広告：PR]</p>
+            </div>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
