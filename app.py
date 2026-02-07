@@ -35,15 +35,13 @@ selected_names = st.sidebar.multiselect("分析する銘柄を選択", list(stoc
 time_span = st.sidebar.radio("表示スパン（期間）", ["1週間", "30日", "1年", "5年", "10年"], index=1)
 span_map = {"1週間": "7d", "30日": "1mo", "1年": "1y", "5年": "5y", "10年": "10y"}
 
-# --- ★初心者向け：ニュース評価の解説パネル ---
+# --- 初心者向け：ニュース評価の解説パネル ---
 with st.expander("💡 ニュース評価の仕組み（初めての方へ）"):
     st.write("""
     このアプリのAIは、世界中のニュース見出しを読んで、その内容が**「お祝いムード（株が上がりそう）」**か**「悲観ムード（下がりそう）」**かを判定しています。
     * **★5.0 (絶好調)**：明るいニュースが多く、期待が高まっています。
     * **★3.0 (普通)**：特に大きなニュースがないか、良い悪いが半々の状態です。
     * **★1.0 (注意)**：トラブルや業績不振などのニュースが目立っています。
-    
-    ※日本株は日本のニュース、米国株は本場米国の英語ニュースを直接AIが読み解いています！
     """)
 
 # --- 4. 実行ボタン ---
@@ -60,10 +58,10 @@ if st.sidebar.button("分析を実行"):
                 plot_data[name] = df
 
                 # 予測計算
-                y = df['Close'].tail(30).values.reshape(-1, 1)
-                X = np.arange(len(y)).reshape(-1, 1)
-                model = LinearRegression(); model.fit(X, y)
-                pred_price = model.predict([[len(y)]])[0][0]
+                y_data = df['Close'].tail(30).values.reshape(-1, 1)
+                X_data = np.arange(len(y_data)).reshape(-1, 1)
+                model = LinearRegression(); model.fit(X_data, y_data)
+                pred_price = model.predict([[len(y_data)]])[0][0]
                 last_price = float(df['Close'].iloc[-1])
                 diff_pct = ((pred_price - last_price) / last_price) * 100
                 
@@ -86,7 +84,6 @@ if st.sidebar.button("分析を実行"):
                         count += 1
                 avg_stars = stars / count if count > 0 else 3
                 
-                # ★AI判定に基づいた日本語コメント
                 status = "😊 期待" if avg_stars > 3.5 else "😐 中立" if avg_stars >= 2.5 else "⚠️ 注意"
                 
                 results.append({
@@ -94,10 +91,35 @@ if st.sidebar.button("分析を実行"):
                     "AI予測(明日)": round(float(pred_price), 2),
                     "AI判定": status,
                     "評価詳細": f"{avg_stars:.1f} ★",
-                    "最新ニュースの要約": top_news[:40] + "...",
+                    "最新ニュース": top_news[:40] + "...",
                     "score": float(diff_pct) + (avg_stars - 3)
                 })
             except: continue
 
     if results:
-        res_df =
+        # --- ここが修正ポイント！ ---
+        res_df = pd.DataFrame(results).sort_values(by="score", ascending=False)
+        st.subheader(f"🏆 AI診断ランキング")
+        st.dataframe(res_df.drop(columns="score"), use_container_width=True)
+
+        st.subheader(f"📈 {time_span}の推移 ＆ 明日予測(★)")
+        fig, ax = plt.subplots(figsize=(12, 6))
+        for name, data in plot_data.items():
+            norm_price = data['Close'] / data['Close'].iloc[0] * 100
+            m = 'o' if time_span in ["1週間", "30日"] else None
+            line = ax.plot(data.index, norm_price, label=name, alpha=0.8, marker=m)
+            
+            # 予測点の描画
+            next_date = data.index[-1] + pd.Timedelta(days=1)
+            # 各銘柄の予測値を探す
+            pred_val = [r['AI予測(明日)'] for r in results if r['銘柄']==name][0]
+            norm_pred = (pred_val / data['Close'].iloc[0]) * 100
+            ax.scatter(next_date, norm_pred, color=line[0].get_color(), marker='*', s=300, edgecolors='black', zorder=5)
+        
+        plt.axhline(100, color='black', linestyle='--', alpha=0.3)
+        plt.legend()
+        st.pyplot(fig)
+    else:
+        st.error("分析に失敗しました。銘柄を選び直してください。")
+
+st.info("💡 グラフの星印(★)は明日への期待値です。")
