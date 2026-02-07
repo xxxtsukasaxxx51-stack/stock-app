@@ -18,15 +18,14 @@ matplotlib.use('Agg')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide")
 
-# カスタムCSS（リンクボタン用のスタイルを追加）
+# カスタムCSS
 st.markdown("""
     <style>
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .news-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 12px; }
-    .news-title-jp { font-weight: bold; color: #333; margin-bottom: 4px; }
-    .news-title-en { font-size: 0.8em; color: #888; font-style: italic; margin-bottom: 8px; }
     .advice-box { padding: 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; border: 1px solid #ddd; }
-    .read-more { font-size: 0.8em; color: #007bff; text-decoration: none; font-weight: bold; }
+    /* ボタンを横幅いっぱいに（スマホ用） */
+    .stButton > button { width: 100%; border-radius: 20px; height: 3em; background-color: #007bff; color: white; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -34,7 +33,6 @@ st.markdown("""
 @st.cache_resource
 def load_ai():
     return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
-
 analyzer = load_ai()
 
 # --- 3. 指標データの取得 ---
@@ -55,8 +53,8 @@ def get_market_indices():
 
 indices_data = get_market_indices()
 
-# --- 4. メイン画面 ---
-st.title("🌍 AIマーケット総合診断 Pro (リンク対応)")
+# --- 4. メイン画面：ヘッダー ---
+st.title("🌍 AIマーケット総合診断 Pro")
 
 m_col1, m_col2, m_col3 = st.columns(3)
 def display_metric(col, label, data_tuple, unit=""):
@@ -68,38 +66,45 @@ display_metric(m_col1, "💴 ドル円", indices_data['ドル円'], "円")
 display_metric(m_col2, "🇯🇵 日経平均", indices_data['日経平均'], "円")
 display_metric(m_col3, "🇺🇸 NYダウ", indices_data['NYダウ'], "ドル")
 
-# --- 5. サイドバー ---
-with st.sidebar:
-    st.header("🔍 銘柄の選択")
-    stock_presets = {
-        "🇺🇸 米国人気株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL", "パランティア": "PLTR"},
-        "🇯🇵 日本人気株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T", "三菱UFJ": "8306.T"},
-        "⚡ 暗号資産/他": {"ビットコイン": "BTC-USD", "金(Gold)": "GC=F"}
-    }
-    all_stocks = {}
-    for cat, items in stock_presets.items(): all_stocks.update(items)
-    selected_names = st.multiselect("リストから選択", list(all_stocks.keys()), default=["エヌビディア", "トヨタ"])
-    
-    st.markdown("---")
-    st.subheader("✍️ 自由に入力")
-    custom_symbol = st.text_input("例: NFLX, 6752.T", "")
-    if custom_symbol:
-        custom_name = f"自由入力({custom_symbol})"
-        all_stocks[custom_name] = custom_symbol
-        if custom_name not in selected_names: selected_names.append(custom_name)
-    
-    st.markdown("---")
-    future_investment = st.number_input("投資金額(円)", min_value=1000, value=100000)
-    time_span = st.select_slider("期間", options=["1週間", "30日", "1年", "5年"], value="30日")
-    span_map = {"1週間": "7d", "30日": "1mo", "1年": "1y", "5年": "5y"}
-    execute = st.button("🚀 総合診断を実行")
+st.markdown("---")
 
-# --- 6. 実行ロジック ---
+# --- 5. ★引っ越し：検索・設定エリアをメイン画面上部に配置 ---
+st.subheader("🔍 銘柄を選んで診断")
+
+# 銘柄リスト
+stock_presets = {
+    "🇺🇸 米国人気株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL", "パランティア": "PLTR"},
+    "🇯🇵 日本人気株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T", "三菱UFJ": "8306.T"},
+    "⚡ 暗号資産/他": {"ビットコイン": "BTC-USD", "金(Gold)": "GC=F"}
+}
+all_stocks = {}
+for cat, items in stock_presets.items(): all_stocks.update(items)
+
+# スマホでも見やすい入力フォーム
+selected_names = st.multiselect("リストから選択（複数OK）", list(all_stocks.keys()), default=["エヌビディア", "トヨタ"])
+custom_symbol = st.text_input("✍️ 自由に入力 (例: NFLX, 6752.T)", "")
+if custom_symbol:
+    custom_name = f"自由入力({custom_symbol})"
+    all_stocks[custom_name] = custom_symbol
+    if custom_name not in selected_names: selected_names.append(custom_name)
+
+# 詳細設定を1列に並べる（スマホだと自動で縦に並ぶ）
+set1, set2 = st.columns(2)
+with set1:
+    future_investment = st.number_input("投資金額(円)", min_value=1000, value=100000)
+with set2:
+    time_span = st.select_slider("グラフ期間", options=["1週間", "30日", "1年", "5年"], value="30日")
+    span_map = {"1週間": "7d", "30日": "1mo", "1年": "1y", "5年": "5y"}
+
+# 診断実行ボタン（CSSで大きく表示）
+execute = st.button("🚀 総合診断を実行")
+
+# --- 6. 実行ロジック（グラフと結果） ---
 if execute:
     results = []
     plot_data = {}
     
-    with st.spinner('ニュースと株価をリンク中...'):
+    with st.spinner('AIが分析中...'):
         for name in selected_names:
             try:
                 symbol = all_stocks[name]
@@ -107,14 +112,14 @@ if execute:
                 if df.empty: continue
                 plot_data[name] = df
                 
-                # 予測
+                # 予測計算
                 current_price = float(df['Close'].iloc[-1])
                 y_reg = df['Close'].tail(20).values.reshape(-1, 1)
                 X_reg = np.arange(len(y_reg)).reshape(-1, 1)
                 model = LinearRegression().fit(X_reg, y_reg)
                 pred_p = float(model.predict([[len(y_reg)]])[0][0])
                 
-                # ニュース取得 (URLも取得)
+                # ニュース取得
                 is_j = ".T" in symbol
                 search_q = name.split("(")[-1].replace(")", "") if "自由入力" in name else (name if is_j else symbol)
                 url_news = f"https://news.google.com/rss/search?q={urllib.parse.quote(search_q)}&hl={'ja' if is_j else 'en'}&gl={'JP' if is_j else 'US'}"
@@ -125,25 +130,12 @@ if execute:
                     for entry in feed.entries[:3]:
                         score = int(analyzer(entry.title)[0]['label'].split()[0])
                         stars_sum += score
-                        
-                        # 和訳
-                        title_jp = entry.title
-                        if not is_j:
-                            try:
-                                title_jp = GoogleTranslator(source='en', target='ja').translate(entry.title)
-                            except: pass
-                        
-                        # 記事URLを格納
-                        news_details.append({
-                            "title_jp": title_jp, 
-                            "title_en": entry.title, 
-                            "score": score,
-                            "link": entry.link # ★ここを追加
-                        })
+                        title_jp = GoogleTranslator(source='en', target='ja').translate(entry.title) if not is_j else entry.title
+                        news_details.append({"title_jp": title_jp, "title_en": entry.title, "score": score, "link": entry.link})
                     avg_stars = stars_sum / len(news_details)
                 else: avg_stars = 3
                 
-                # アドバイス
+                # アドバイス判定
                 trend_up = pred_p > current_price
                 if avg_stars >= 3.5 and trend_up: advice, color = "🌟【絶好調】勢いに乗っています！", "#e8f5e9"
                 elif avg_stars <= 2.5 and not trend_up: advice, color = "⚠️【警戒】今は静観が良さそうです。", "#ffebee"
@@ -151,81 +143,37 @@ if execute:
                 elif avg_stars >= 3.5 and not trend_up: advice, color = "❓【チグハグ】いい材料が無視されています。", "#e1f5fe"
                 else: advice, color = "😐【様子見】大きな動きを待っています。", "#f5f5f5"
 
-                results.append({
-                    "銘柄": name, "将来価値": future_investment * (pred_p / current_price), 
-                    "評価": avg_stars, "pred": pred_p, "news": news_details,
-                    "symbol": symbol, "advice": advice, "color": color
-                })
+                results.append({"銘銘": name, "将来価値": future_investment * (pred_p / current_price), "評価": avg_stars, "pred": pred_p, "news": news_details, "symbol": symbol, "advice": advice, "color": color, "current": current_price})
             except: continue
 
-# --- 6. 実行ロジック内のグラフ描画部分を以下に差し替え ---
     if results:
-        # 1. グラフ表示
+        # グラフ表示
         st.subheader("📈 トレンド予測グラフ")
-        
-        # グラフのサイズを少し横長にして凡例スペースを確保
-        fig, ax = plt.subplots(figsize=(14, 7))
-        
-        # 銘柄ごとにループして描画
+        fig, ax = plt.subplots(figsize=(10, 6))
         for name, data in plot_data.items():
             base_p = data['Close'].iloc[0]
             norm_p = data['Close'] / base_p * 100
-            
-            # ★線の描画（ラベルを明示的に指定）
-            line = ax.plot(data.index, norm_p, label=f"{name}", linewidth=2.5, alpha=0.8)
-            color = line[0].get_color()
-            
-            # 未来の予測地点（星印）
-            res_item = next(r for r in results if r['銘柄'] == name)
+            line = ax.plot(data.index, norm_p, label=name, linewidth=2.5)
+            res_item = next(r for r in results if r['銘銘'] == name)
             norm_pred = (res_item['pred'] / base_p) * 100
             future_date = data.index[-1] + timedelta(days=1)
-            
-            # 予測ルートの点線
-            ax.plot([data.index[-1], future_date], [norm_p.iloc[-1], norm_pred], 
-                    color=color, linestyle='--', alpha=0.5)
-            
-            # 未来の地点に星を描画
-            ax.scatter(future_date, norm_pred, color=color, marker='*', s=350, 
-                       edgecolors='black', zorder=10)
+            ax.plot([data.index[-1], future_date], [norm_p.iloc[-1], norm_pred], color=line[0].get_color(), linestyle='--', alpha=0.5)
+            ax.scatter(future_date, norm_pred, color=line[0].get_color(), marker='*', s=300, edgecolors='black', zorder=10)
         
-        # ★凡例をグラフの外側に配置（ここが重要！）
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=12)
-        
-        # 基準線 (開始時の価格100%)
-        plt.axhline(100, color='black', linestyle='-', alpha=0.2)
-        
-        # グラフの見た目調整
-        plt.title(f"株価トレンド比較（開始日を100とした成長率）", fontsize=15, pad=20)
-        plt.ylabel("成長率 (%)")
-        plt.xlabel("日付")
-        plt.grid(True, alpha=0.2)
-        
-        # レイアウトを整えて凡例が切れないようにする
+        # 凡例をスマホでも見やすく（上部に配置）
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=10)
         plt.tight_layout()
-        
         st.pyplot(fig)
 
         # 診断詳細
         st.markdown("---")
-        st.subheader("🏆 AI診断詳細 & ニュースリンク")
+        st.subheader("🏆 AI診断詳細")
         for res in results:
-            with st.expander(f"📌 {res['銘柄']} の診断詳細", expanded=True):
-                col_m, col_n = st.columns([1, 2])
-                with col_m:
-                    st.metric("明日への予測額", f"{res['将来価値']:,.0f}円", f"{res['将来価値']-future_investment:+,.0f}円")
-                    st.write(f"**AI評価:** {res['評価']:.1f} ★")
-                    st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
-                with col_n:
-                    st.write("**最新ニュース（クリックで記事へ）:**")
-                    for n in res['news']:
-                        # 和訳タイトルをリンクにして、下に英語を添える
-                        st.markdown(f"""
-                        <div class='news-box'>
-                            {'⭐' * n['score']}<br>
-                            <a href='{n['link']}' target='_blank' style='text-decoration: none;'>
-                                <div class='news-title-jp'>🔗 {n['title_jp']}</div>
-                            </a>
-                            <div class='news-title-en'>{n['title_en']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-    else: st.error("分析を実行してください。")
+            with st.expander(f"📌 {res['銘銘']} の結果を見る", expanded=True):
+                st.metric("明日への予測額", f"{res['将来価値']:,.0f}円", f"{res['将来価値']-future_investment:+,.0f}円")
+                st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
+                st.write("**最新ニュース:**")
+                for n in res['news']:
+                    st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
+    else:
+        st.info("銘柄を選んでボタンを押してください。")
