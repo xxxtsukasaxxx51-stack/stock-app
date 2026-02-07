@@ -182,22 +182,23 @@ if execute:
                 st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
                 for n in res['news']:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a></div>", unsafe_allow_html=True)
-
-        # シェアボタン   
+# --- 3. シェアボタン ---
         st.markdown("---")
+        st.subheader("📢 診断結果をシェアする")
         share_stock = selected_names[0] if selected_names else "注目銘柄"
         share_text = urllib.parse.quote(f"AIが「{share_stock}」を診断しました！🤖📈 #米国株 #AI投資診断 #アイモン")
-        app_url = "https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/#156eb3e3" # ★自分のURLに書き換え
+        app_url = "https://your-app-url.streamlit.app/" # ★自分のURLに書き換え
         share_url = f"https://twitter.com/intent/tweet?text={share_text}&url={app_url}"
+        
         st.components.v1.html(f'<a href="{share_url}" target="_blank"><button style="width: 100%; padding: 15px; background-color: #000000; color: white; border: none; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer;">𝕏 (Twitter) でシェアして応援する</button></a>', height=80)
-    else:
-        st.info("銘柄を選んでボタンを押してください。")
- st.info("""
+        
+        # インデントを左の「st.components...」と完璧に揃える
+        st.info("""
         📢 **画像付きでシェアする方法：**
         1. 上の『予測グラフを画像として保存』ボタンで画像をダウンロード
         2. 『𝕏 でシェア』ボタンを押し、投稿画面でその画像を貼り付けてね！
-        """)     
-        
+        """)
+
 # --- 7. 免責事項 ---
 st.markdown("---")
 st.markdown("""
