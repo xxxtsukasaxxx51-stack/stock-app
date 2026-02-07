@@ -216,19 +216,25 @@ if execute:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
     else:
         st.info("銘柄を選んでボタンを押してください。")
-
-        # --- X（Twitter）シェアボタンの作成 ---
+# --- 修正版：シェアボタンのコード ---
 st.markdown("### 📢 診断結果をシェアする")
 
-# シェア用のテキスト（銘柄名を入れるとより良いです）
-# ticker_symbol はあなたが銘柄入力に使っている変数名に合わせてください
-share_text = f"AIが「{ticker_symbol}」の最新ニュースと価格トレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
-app_url = "https://your-app-url.streamlit.app/" # あなたのアプリのURLに書き換えてください
+# もし入力欄の変数名が 'symbol' なら、ここを {symbol} に変える
+# わからない場合は、とりあえず「注目銘柄」などの固定文字にするか、
+# 入力部分のコードを確認してください。
 
-# Xのシェア用URL作成
-share_url = f"https://twitter.com/intent/tweet?text={share_text}&url={app_url}"
+# 例：変数名が 'symbol' の場合
+share_text = f"AIが「{symbol}」の最新ニュースと価格トレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
 
-# ボタンの表示
+app_url = "https://your-app-url.streamlit.app/" # あなたのアプリのURL
+
+# URLエンコード（日本語をURLで送れるように変換）
+import urllib.parse
+s_text_quoted = urllib.parse.quote(share_text)
+s_url_quoted = urllib.parse.quote(app_url)
+
+share_url = f"https://twitter.com/intent/tweet?text={s_text_quoted}&url={s_url_quoted}"
+
 st.markdown(f"""
     <a href="{share_url}" target="_blank" style="text-decoration: none;">
         <div style="
