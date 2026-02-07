@@ -8,13 +8,14 @@ from datetime import timedelta
 import urllib.parse
 import re
 
-# --- 0. 基本設定 (エラーの原因だった定義を追加) ---
+# --- 0. 基本設定 ---
 APP_URL = "https://your-app-name.streamlit.app/" 
+CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
 
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
 
-# --- 2. CSS (ダークモード・スマホ対応・Xボタン) ---
+# --- 2. CSS (スマホ対応・ダークモード対応) ---
 st.markdown("""
     <style>
     .main-step { color: #3182ce; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #3182ce; padding-left: 10px; margin: 20px 0 10px 0; }
@@ -22,6 +23,7 @@ st.markdown("""
     .x-share-button { display: inline-block; background: #000; color: #fff !important; padding: 12px 24px; border-radius: 30px; text-decoration: none; font-weight: bold; margin: 10px 0; }
     .disclaimer-box { font-size: 0.8rem; padding: 20px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2); margin-top: 40px; line-height: 1.6; color: gray; }
     .ad-card { flex: 1; min-width: 280px; padding: 20px; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 15px; background: rgba(128, 128, 128, 0.05); text-align: center; }
+    .floating-char { position: fixed; bottom: 10px; right: 10px; width: 100px; z-index: 100; pointer-events: none; mix-blend-mode: multiply; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -31,7 +33,7 @@ st.title("🤖 AIマーケット総合診断 Pro")
 with st.expander("💡 感情指数と期間設定について"):
     st.markdown("""
     * **感情指数**: 市場の勢いをAIが解析。⭐4以上は上昇トレンド、⭐2以下は警戒。
-    * **分析期間**: 短期（1週間〜30日）は値動きの速さ、長期（1年〜）は安定性を重視します。
+    * **分析期間**: 短期（1週間〜30日）は値動きの速さ、長期（1年〜）は企業の成長力を重視します。
     """)
 
 st.markdown("<div class='main-step'>STEP 1 & 2: 銘柄選びと条件設定</div>", unsafe_allow_html=True)
@@ -73,7 +75,7 @@ if st.button("🚀 AI診断スタート"):
                         st.warning(f"{symbol} のデータが取得できませんでした。")
                         continue
                     
-                    # 予測ロジック (エラー対策済み)
+                    # 予測ロジック
                     y = df['Close'].values.flatten()
                     if len(y) < 2: continue
                     
@@ -118,7 +120,7 @@ if st.button("🚀 AI診断スタート"):
                 r1.metric("5日後の予想資産", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
                 r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
                 
-                # X投稿 (ここがエラーの箇所でした)
+                # X投稿
                 share_text = f"📈 AIマーケット診断\n🎯 {res['symbol']} ({res['period']})\n📢 判定: {res['adv']}\n🚀 予想: {res['future']:,.0f}円\n{APP_URL}"
                 x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}"
                 st.markdown(f'<a href="{x_url}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
@@ -134,4 +136,5 @@ st.markdown("""
     <div class="ad-card"><b>DMM 株 [PR]</b><br><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">口座開設はこちら</a></div>
     <div class="ad-card"><b>TOSSY [PR]</b><br><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">アプリを体験</a></div>
 </div>
-""", unsafe_allow_html=True))
+<img src="https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true" class="floating-char">
+""", unsafe_allow_html=True)
