@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import feedparser
-import pandas as pd
+import pd
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from transformers import pipeline
@@ -18,7 +18,7 @@ CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Ge
 INVESTMENT_QUOTES = [
     "「木を見て森を見ず」にならないように、期間を変えてチェックしよう！",
     "「短期は感情、長期は理屈」で動くのが相場の常だよ。",
-    "「分散投資」は、投資の世界で唯一のフリーランチ（タダ飯）だよ。"
+    "「どの期間で戦うか」を決めることが、投資の第一歩だね。"
 ]
 
 # --- 1. ページ設定 ---
@@ -32,18 +32,20 @@ if "results" not in st.session_state:
 if "plot_data" not in st.session_state:
     st.session_state.plot_data = {}
 
-# --- 3. CSS (シェアボタンとデザイン) ---
+# --- 3. CSS (Xシェアボタンとデザイン) ---
 st.markdown(f"""
     <style>
     .welcome-box {{ background-color: #f0f7ff; padding: 20px; border-radius: 15px; border: 1px solid #3182ce; margin-bottom: 25px; }}
     .feature-tag {{ background: #3182ce; color: white; padding: 2px 10px; border-radius: 5px; font-size: 0.8em; margin-right: 5px; }}
     .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 15px; border-left: 5px solid #3182ce; padding-left: 10px; }}
-    .sms-button {{
-        display: inline-block; background-color: #4cd964; color: white !important; 
+    /* Xシェアボタンのデザイン */
+    .x-share-button {{
+        display: inline-block; background-color: #000000; color: white !important; 
         padding: 8px 18px; border-radius: 20px; text-decoration: none; 
         font-weight: bold; font-size: 0.85em; margin-top: 10px; border: none;
+        transition: 0.3s;
     }}
-    .sms-button:hover {{ background-color: #3fb955; opacity: 0.9; }}
+    .x-share-button:hover {{ background-color: #333333; opacity: 0.9; }}
     .floating-char-box {{ position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; align-items: center; pointer-events: none; }}
     .char-img {{ width: 140px; mix-blend-mode: multiply; filter: contrast(125%) brightness(108%); animation: float 3s ease-in-out infinite; }}
     .auto-quote-bubble {{ background: white; border: 2px solid #3182ce; border-radius: 15px; padding: 10px 15px; margin-bottom: 10px; font-size: 0.85em; font-weight: bold; width: 220px; text-align: center; position: relative; }}
@@ -58,13 +60,11 @@ st.markdown(f"""
 # --- 4. 銘柄リスト & 名前クリーンアップ ---
 STOCK_PRESETS = {
     "🇺🇸 エヌビディア (AI半導体)": "NVDA", "🇺🇸 テスラ (電気自動車)": "TSLA", "🇺🇸 アップル (iPhone)": "AAPL",
-    "🇺🇸 マイクロソフト (AI/OS)": "MSFT", "🇺🇸 アマゾン (EC)": "AMZN", "🇺🇸 アルファベット (Google)": "GOOGL",
     "🇯🇵 トヨタ自動車 (世界一)": "7203.T", "🇯🇵 ソニーG (エンタメ)": "6758.T", "🇯🇵 ソフトバンクG (投資)": "9984.T",
-    "🇯🇵 任天堂 (ゲーム)": "7974.T", "🇯🇵 三菱UFJ銀 (金融)": "8306.T", "🇯🇵 キーエンス (高収益)": "6861.T"
+    "🇯🇵 三菱UFJ銀 (金融)": "8306.T", "🇯🇵 任天堂 (ゲーム)": "7974.T"
 }
 
 def clean_stock_name(name):
-    # 記号や国旗を消して、最初の単語（社名）だけ抽出
     name = re.sub(r'[^\w\s\.]', '', name)
     return name.strip().split(' ')[0]
 
@@ -76,14 +76,23 @@ st.markdown("""
     <h4 style="margin-top:0;">🌟 はじめての方へ：このアプリでできること</h4>
     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
         <div><span class="feature-tag">予測</span> <b>1. 未来予測</b>：5日後の株価をAI算出。</div>
-        <div><span class="feature-tag">分析</span> <b>2. 星判定</b>：ニュースの熱気を星5段階で表示。</div>
-        <div><span class="feature-tag">共有</span> <b>3. SMSシェア</b>：結果をスマホのメッセージで送れる！</div>
+        <div><span class="feature-tag">分析</span> <b>2. 星判定</b>：最新ニュースを星5段階で判定。</div>
+        <div><span class="feature-tag">共有</span> <b>3. Xでポスト</b>：診断結果をX(Twitter)に投稿可能！</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
+# 【追加】分析期間についての解説
+with st.expander("💡 分析期間を変えると結果が変わるのはなぜ？"):
+    st.write("""
+    投資の目的（ゴール）によって、AIが見るべきデータが異なるからです。
+    - **「1週間/30日」を選んだ場合**: AIは「今の勢い（トレンド）」を重視します。デイトレードや短期投資の参考になります。
+    - **「5年/全期間」を選んだ場合**: AIは「その銘柄が本来持っている成長力」を重視します。数年単位の長期投資の参考になります。
+    **「短期では下がると出ているが、長期では上がる」**といった違いを見つけるのが、賢い診断のコツです！
+    """)
+
 with st.expander("⭐ 「星の指標（AI感情分析）」とは？"):
-    st.write("最新ニュースをAIが読み取り、市場の期待値を1.0〜5.0で数値化したものです。5に近いほどポジティブなニュースが多いことを示します。")
+    st.write("最新ニュースをAIが読み取り、1.0〜5.0で数値化したものです。5に近いほど期待が高まっています。")
 
 st.markdown(f"""<div class="floating-char-box"><div class="auto-quote-bubble">{st.session_state.char_msg}</div><img src="{CHARACTER_URL}" class="char-img"></div>""", unsafe_allow_html=True)
 
@@ -93,7 +102,7 @@ c_in1, c_in2 = st.columns([2, 1])
 selected_names = c_in1.multiselect("リストから選ぶ", list(STOCK_PRESETS.keys()), default=["🇺🇸 エヌビディア (AI半導体)"])
 f_inv = c_in2.number_input("シミュレーション金額(円)", min_value=1000, value=100000, step=10000)
 
-time_span = st.select_slider("分析する期間を選択", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="全期間(Max)")
+time_span = st.select_slider("分析する期間を選択（上の説明もチェック！）", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="全期間(Max)")
 span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","全期間(Max)":"max"}
 
 # 実行
@@ -147,7 +156,7 @@ if st.button("🚀 AI診断スタート"):
 
 # --- 7. 結果表示 ---
 if st.session_state.results:
-    st.markdown(f"<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='main-step'>STEP 3: {st.session_state.results[0].get('period_label')}の診断結果</div>", unsafe_allow_html=True)
     
     # グラフ
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -163,22 +172,22 @@ if st.session_state.results:
     ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
     st.pyplot(fig)
 
-    # 銘柄別カード
+    # 銘柄別詳細
     for res in st.session_state.results:
         st.markdown(f"### 🎯 {res['銘柄']}")
         c_res1, c_res2 = st.columns([1, 2])
         c_res1.metric(f"{res['pred_date']} 予想額", f"{res['将来']:,.0f}円", f"{res['gain']:+,.0f}円")
         c_res2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']}</div>", unsafe_allow_html=True)
         
-        # SMSシェアボタンの作成
-        sms_text = f"【AIマーケット診断結果】\n銘柄: {res['銘柄']}\n予測日: {res['pred_date']}\n予想資産: {res['将来']:,.0f}円\n判定: {res['adv']}\n#AI株診断"
-        sms_url = f"sms:?&body={urllib.parse.quote(sms_text)}"
-        st.markdown(f'<a href="{sms_url}" class="sms-button">💬 SMSで友だちに教える</a>', unsafe_allow_html=True)
+        # X（旧Twitter）シェアボタン
+        share_text = f"【AI株診断】\n銘柄: {res['銘柄']}\n期間: {res['period_label']}\n判定: {res['adv']}\n5日後の予想資産: {res['将来']:,.0f}円！\n#AIマーケット診断 #資産運用"
+        x_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}"
+        st.markdown(f'<a href="{x_url}" target="_blank" class="x-share-button">𝕏 この結果をポストする</a>', unsafe_allow_html=True)
 
         st.markdown(f"<div class='sentiment-badge'>AI感情分析: {res['stars']:.1f} / 5.0 {'⭐' * int(res['stars'])}</div>", unsafe_allow_html=True)
         for n in res['news']:
             st.markdown(f"<div class='news-box'>{'★' * n['score']} <a href='{n['link']}' target='_blank'><b>{n['title']}</b></a></div>", unsafe_allow_html=True)
 
 # 広告・免責
-st.markdown("""<div class="ad-container"><div class="ad-card"><p>📊 証券口座なら</p><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">DMM 株 口座開設はこちら [PR]</a></div><div class="ad-card"><p>📱 投資アプリなら</p><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">投資アプリ TOSSY [PR]</a></div></div>""", unsafe_allow_html=True)
-st.markdown("<div class='disclaimer-box'>【免責】予想額はシミュレーションであり将来を保証しません。最終的な投資判断は自己責任でお願いします。[PR]</div>", unsafe_allow_html=True)
+st.markdown("""<div class="ad-container"><div class="ad-card"><p>📊 証券口座なら</p><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">DMM 株 [PR]</a></div><div class="ad-card"><p>📱 投資アプリなら</p><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">TOSSY [PR]</a></div></div>""", unsafe_allow_html=True)
+st.markdown("<div class='disclaimer-box'>【免責】予想額はトレンドに基づく算出であり将来を保証しません。投資は自己責任でお願いします。</div>", unsafe_allow_html=True)
