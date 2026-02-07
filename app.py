@@ -216,6 +216,34 @@ if execute:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
     else:
         st.info("銘柄を選んでボタンを押してください。")
+
+        # --- X（Twitter）シェアボタンの作成 ---
+st.markdown("### 📢 診断結果をシェアする")
+
+# シェア用のテキスト（銘柄名を入れるとより良いです）
+# ticker_symbol はあなたが銘柄入力に使っている変数名に合わせてください
+share_text = f"AIが「{ticker_symbol}」の最新ニュースと価格トレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
+app_url = "https://your-app-url.streamlit.app/" # あなたのアプリのURLに書き換えてください
+
+# Xのシェア用URL作成
+share_url = f"https://twitter.com/intent/tweet?text={share_text}&url={app_url}"
+
+# ボタンの表示
+st.markdown(f"""
+    <a href="{share_url}" target="_blank" style="text-decoration: none;">
+        <div style="
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #000000;
+            color: white;
+            font-weight: bold;
+            border-radius: 20px;
+            text-align: center;
+        ">
+            𝕏 で診断結果をシェア
+        </div>
+    </a>
+""", unsafe_allow_html=True)
         # --- 7. 免責事項（アプリの最下部に配置） ---
 st.markdown("---")
 
