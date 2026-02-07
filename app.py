@@ -216,40 +216,7 @@ if execute:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
     else:
         st.info("銘柄を選んでボタンを押してください。")
-# --- 修正版：シェアボタンのコード ---
-st.markdown("### 📢 診断結果をシェアする")
 
-# もし入力欄の変数名が 'symbol' なら、ここを {symbol} に変える
-# わからない場合は、とりあえず「注目銘柄」などの固定文字にするか、
-# 入力部分のコードを確認してください。
-
-# 例：変数名が 'symbol' の場合
-share_text = f"AIが「{symbol}」の最新ニュースと価格トレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
-
-app_url = "https://your-app-url.streamlit.app/" # あなたのアプリのURL
-
-# URLエンコード（日本語をURLで送れるように変換）
-import urllib.parse
-s_text_quoted = urllib.parse.quote(share_text)
-s_url_quoted = urllib.parse.quote(app_url)
-
-share_url = f"https://twitter.com/intent/tweet?text={s_text_quoted}&url={s_url_quoted}"
-
-st.markdown(f"""
-    <a href="{share_url}" target="_blank" style="text-decoration: none;">
-        <div style="
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #000000;
-            color: white;
-            font-weight: bold;
-            border-radius: 20px;
-            text-align: center;
-        ">
-            𝕏 で診断結果をシェア
-        </div>
-    </a>
-""", unsafe_allow_html=True)
         # --- 7. 免責事項（アプリの最下部に配置） ---
 st.markdown("---")
 
@@ -277,3 +244,14 @@ st.markdown("""
     <br>
     <p style='text-align: center; color: #999; font-size: 0.7em;'>© 2024 AI Market Diagnosis Pro - All Rights Reserved.</p>
     """, unsafe_allow_html=True)
+
+    # 1. 診断結果の表示（グラフやAIコメント）
+st.write("AIによる診断結果は...") 
+
+# 2. 免責事項
+st.caption("免責事項：本アプリの情報は投資勧誘を目的としたものではありません。投資の最終決定はご自身の判断で...")
+
+# 3. ここにシェアボタンを置く！
+st.markdown("---")
+st.markdown("### 📢 診断結果をシェアする")
+# （ここに先ほどのシェアボタンのコード）
