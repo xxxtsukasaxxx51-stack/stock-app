@@ -7,6 +7,7 @@ from sklearn.linear_model import LinearRegression
 import urllib.parse
 import feedparser
 import random
+import japanize_matplotlib # 日本語表示用
 
 # --- 0. 基本設定 ---
 APP_URL = "https://your-app-name.streamlit.app/" 
@@ -41,81 +42,64 @@ with st.expander("💡 感情指数と分析期間のヒント"):
     st.markdown("""
     ### 📊 感情指数（AI期待値）とは？
     最新のニュース記事をAIがスキャンし、市場の「強気・弱気」を⭐1〜5で判定したものです。
+    株価の数字だけでなく、世の中の「雰囲気」を投資判断に取り入れることができます。
+
     ### ⏳ 分析期間の選び方
     * **短期（1週間〜30日）**: 目先のトレンド予測。
     * **長期（1年〜全期間）**: 企業の成長の本質を分析。
     """)
 
-# --- 🎯 銘柄マスター（企業名とコードの紐付け） ---
+# --- 🎯 銘柄マスター ---
 stock_master = {
-    "🇺🇸 米国成長株": {
-        "エヌビディア": "NVDA", "テスラ": "TSLA", "アップル": "AAPL",
-        "マイクロソフト": "MSFT", "アマゾン": "AMZN", "グーグル": "GOOGL",
-        "メタ": "META", "アドバンスト・マイクロ": "AMD"
-    },
-    "🇺🇸 米国配当・安定株": {
-        "コカ・コーラ": "KO", "マクドナルド": "MCD", "ジョンソン・エンド・J": "JNJ",
-        "プロクター・ギャンブル": "PG", "ビザ": "V"
-    },
-    "🇯🇵 日本主力株": {
-        "トヨタ自動車": "7203.T", "三菱UFJ": "8306.T", "ソフトバンクG": "9984.T",
-        "任天堂": "7974.T", "ソニーグループ": "6758.T", "ファーストリテイリング": "9983.T"
-    },
-    "🇯🇵 日本高配当・商社": {
-        "三菱商事": "8058.T", "三井物産": "8031.T", "日本電信電話(NTT)": "9432.T",
-        "日本たばこ産業(JT)": "2914.T", "武田薬品工業": "4502.T"
-    },
-    "📈 指数・ETF": {
-        "S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ", "日経平均 (1321.T)": "1321.T"
-    }
+    "🇺🇸 米国成長株": {"エヌビディア": "NVDA", "テスラ": "TSLA", "アップル": "AAPL", "マイクロソフト": "MSFT", "アマゾン": "AMZN"},
+    "🇯🇵 日本主力株": {"トヨタ自動車": "7203.T", "三菱UFJ": "8306.T", "ソフトバンクG": "9984.T", "任天堂": "7974.T", "ソニーグループ": "6758.T"},
+    "📈 指数・ETF": {"S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ", "日経平均 (1321.T)": "1321.T"}
 }
 
-# 逆引き用辞書（コードから企業名を取得）
 code_to_name = {}
 flat_options = {}
-for category, stocks in stock_master.items():
+for cat, stocks in stock_master.items():
     for name, code in stocks.items():
         code_to_name[code] = name
-        flat_options[f"[{category}] {name} ({code})"] = code
+        flat_options[f"[{cat}] {name} ({code})"] = code
 
 st.markdown("<div class='main-step'>STEP 1 & 2: 銘柄選びと条件設定</div>", unsafe_allow_html=True)
 c_sel, c_free = st.columns([1, 1])
-selected_popular_keys = c_sel.multiselect("🔥 カテゴリ別・人気銘柄", list(flat_options.keys()))
-free_input = c_free.text_input("✍️ 自由入力 (例: NFLX, 6501.T)", placeholder="コードを入力")
+selected_keys = c_sel.multiselect("🔥 人気銘柄から選択", list(flat_options.keys()))
+free_input = c_free.text_input("✍️ 自由入力 (例: NFLX, 6501.T)", placeholder="カンマ区切りで入力")
 
-# 銘柄リスト統合
-final_symbols = [flat_options[key] for key in selected_popular_keys]
+final_symbols = [flat_options[key] for key in selected_keys]
 if free_input:
-    for s in free_input.split(","):
-        symbol = s.strip().upper()
-        if symbol:
-            final_symbols.append(symbol)
+    final_symbols.extend([s.strip().upper() for s in free_input.split(",") if s.strip()])
 final_symbols = list(dict.fromkeys(final_symbols))
 
 c_in1, c_in2 = st.columns([1, 1])
-f_inv = c_in1.number_input("シミュレーション金額(円)", min_value=1000, value=100000)
+f_inv = c_in1.number_input("投資金額(円)", min_value=1000, value=100000)
 time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="1年")
 span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","全期間(Max)":"max"}
 
-# --- 実行 ---
+# --- 実行ロジック ---
 if st.button("🚀 AI診断スタート"):
     if not final_symbols:
         st.error("銘柄を入力してください。")
     else:
         results = []
-        with st.spinner('市場データを解析中...'):
+        plot_data = {}
+        
+        with st.spinner('市場データとグラフを生成中...'):
             for symbol in final_symbols:
                 try:
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
                     if df.empty: continue
                     
+                    # 予測
                     y = df['Close'].values.flatten()
                     y_last = y[-20:] if len(y) >= 20 else y
                     model = LinearRegression().fit(np.arange(len(y_last)).reshape(-1, 1), y_last)
                     pred_price = float(model.predict(np.array([[len(y_last)+5]]))[0])
                     curr_price = float(y[-1])
                     
-                    # ニュース
+                    # ニュース取得
                     news_list = []
                     try:
                         feed = feedparser.parse(f"https://news.google.com/rss/search?q={symbol}&hl=ja&gl=JP")
@@ -127,30 +111,41 @@ if st.button("🚀 AI診断スタート"):
                     stars = round(np.clip(3.0 + (pred_price/curr_price - 1)*10, 1.5, 5.0), 1)
                     adv, col = ("🚀 強気", "#d4edda") if pred_price > curr_price else ("⚠️ 警戒", "#f8d7da")
                     
-                    # 企業名の取得（リストになければコードを表示）
-                    display_name = code_to_name.get(symbol, symbol)
-
                     results.append({
-                        "name": display_name, "symbol": symbol, "future": f_inv * (pred_price / curr_price),
+                        "name": code_to_name.get(symbol, symbol), "symbol": symbol, 
+                        "future": f_inv * (pred_price / curr_price),
                         "gain": (f_inv * (pred_price / curr_price)) - f_inv,
                         "adv": adv, "col": col, "stars": stars, "period": time_span,
                         "invest": f_inv, "news": news_list
                     })
+                    plot_data[symbol] = df
                 except: continue
 
         if results:
             st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
+            
+            # --- 📈 グラフ復活 ---
+            fig, ax = plt.subplots(figsize=(10, 4))
+            fig.patch.set_alpha(0.0)
+            ax.patch.set_alpha(0.0)
+            for s, d in plot_data.items():
+                label_name = f"{code_to_name.get(s, s)} ({s})"
+                ax.plot(d.index, d['Close'] / d['Close'].iloc[0] * 100, label=label_name)
+            ax.set_ylabel("成長率 (%)")
+            ax.legend(loc='upper left', fontsize='small')
+            st.pyplot(fig)
+
             for res in results:
-                # 企業名と銘柄コードを表示
                 st.markdown(f"### 🎯 {res['name']} ({res['symbol']})")
                 r1, r2 = st.columns(2)
                 r1.metric(f"5日後の予想資産 ({res['period']})", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
                 r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (AI期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
                 
+                # ニュース表示
                 for n in res['news']:
                     st.markdown(f"<div class='news-card'><span class='news-stars'>⭐{n['star']}</span><a href='{n['link']}' target='_blank' style='text-decoration:none;color:inherit;'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
-                # X投稿に企業名を追加
+                # X投稿の整形
                 share_text = (
                     f"📈 【AIマーケット診断 Pro】\n"
                     f"━━━━━━━━━━━━━━\n"
@@ -165,5 +160,5 @@ if st.button("🚀 AI診断スタート"):
                 st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
                 st.divider()
 
-st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づく予測であり、将来の成果を保証しません。判断は自己責任で行ってください。</div>', unsafe_allow_html=True)
+st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づく予測であり、将来の成果を保証しません。</div>', unsafe_allow_html=True)
 
