@@ -9,7 +9,7 @@ from sklearn.linear_model import LinearRegression
 import urllib.parse
 import numpy as np
 from datetime import timedelta
-from googletrans import Translator # 和訳用ライブラリ
+from deep_translator import GoogleTranslator # ★新しい和訳ライブラリに変更
 
 # --- 0. グラフ表示の安定化設定 ---
 import matplotlib
@@ -29,14 +29,13 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 翻訳・AIモデルの準備 ---
+# --- 2. AIモデルの準備 ---
 @st.cache_resource
-def load_models():
-    analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
-    translator = Translator()
-    return analyzer, translator
+def load_ai():
+    # 感情分析AIのみキャッシュ
+    return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-analyzer, translator = load_models()
+analyzer = load_ai()
 
 # --- 3. 指標データの取得 ---
 @st.cache_data(ttl=300)
@@ -56,8 +55,8 @@ def get_market_indices():
 
 indices_data = get_market_indices()
 
-# --- 4. 画面表示 ---
-st.title("🌍 AIマーケット総合診断 Pro (和訳対応)")
+# --- 4. メイン画面 ---
+st.title("🌍 AIマーケット総合診断 Pro (最新版)")
 
 m_col1, m_col2, m_col3 = st.columns(3)
 def display_metric(col, label, data_tuple, unit=""):
@@ -108,7 +107,7 @@ if execute:
                 if df.empty: continue
                 plot_data[name] = df
                 
-                # 未来予測
+                # 予測
                 current_price = float(df['Close'].iloc[-1])
                 y_reg = df['Close'].tail(20).values.reshape(-1, 1)
                 X_reg = np.arange(len(y_reg)).reshape(-1, 1)
@@ -124,36 +123,39 @@ if execute:
                 news_details, stars_sum = [], 0
                 if feed.entries:
                     for entry in feed.entries[:3]:
-                        # 感情分析
                         score = int(analyzer(entry.title)[0]['label'].split()[0])
                         stars_sum += score
-                        # ★和訳処理
+                        
+                        # ★和訳処理 (deep-translator を使用)
                         title_jp = entry.title
-                        if not is_j: # 米国銘柄なら和訳
+                        if not is_j:
                             try:
-                                title_jp = translator.translate(entry.title, dest='ja').text
+                                # シンプルに翻訳実行
+                                title_jp = GoogleTranslator(source='en', target='ja').translate(entry.title)
                             except: pass
                         news_details.append({"title_jp": title_jp, "title_en": entry.title, "score": score})
                     avg_stars = stars_sum / len(news_details)
                 else: avg_stars = 3
                 
-                # アドバイスロジック
+                # アドバイス表示
                 trend_up = pred_p > current_price
-                if avg_stars >= 3.5 and trend_up: advice, color = "🌟【絶好調】", "#e8f5e9"
-                elif avg_stars <= 2.5 and not trend_up: advice, color = "⚠️【警戒】", "#ffebee"
-                elif avg_stars <= 2.5 and trend_up: advice, color = "🤔【チグハグ】悪いニュースに耐えています。", "#fff3e0"
-                elif avg_stars >= 3.5 and not trend_up: advice, color = "❓【チグハグ】いいニュースなのに元気なし。", "#e1f5fe"
-                else: advice, color = "😐【様子見】", "#f5f5f5"
+                if avg_stars >= 3.5 and trend_up: advice, color = "🌟【絶好調】期待大です！", "#e8f5e9"
+                elif avg_stars <= 2.5 and not trend_up: advice, color = "⚠️【警戒】慎重に！", "#ffebee"
+                elif avg_stars <= 2.5 and trend_up: advice, color = "🤔【チグハグ】悪材料出尽くしかも？", "#fff3e0"
+                elif avg_stars >= 3.5 and not trend_up: advice, color = "❓【チグハグ】様子見推奨。", "#e1f5fe"
+                else: advice, color = "😐【様子見】静かな市場です。", "#f5f5f5"
 
                 results.append({
                     "銘柄": name, "将来価値": future_investment * (pred_p / current_price), 
                     "評価": avg_stars, "pred": pred_p, "news": news_details,
                     "symbol": symbol, "advice": advice, "color": color
                 })
-            except: continue
+            except Exception as e:
+                st.write(f"エラー報告: {name} の分析中に問題が発生しました。")
+                continue
 
     if results:
-        # グラフ表示
+        # グラフ
         st.subheader("📈 トレンド予測グラフ")
         fig, ax = plt.subplots(figsize=(12, 6))
         for name, data in plot_data.items():
@@ -171,19 +173,16 @@ if execute:
         st.markdown("---")
         st.subheader("🏆 AI診断詳細 & 和訳ニュース")
         for res in results:
-            with st.expander(f"📌 {res['銘柄']} の診断", expanded=True):
+            with st.expander(f"📌 {res['銘柄']} の診断詳細", expanded=True):
                 col_m, col_n = st.columns([1, 2])
                 with col_m:
                     st.metric("明日への予測額", f"{res['将来価値']:,.0f}円", f"{res['将来価値']-future_investment:+,.0f}円")
                     st.write(f"**AI評価:** {res['評価']:.1f} ★")
                     st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
                 with col_n:
-                    st.write("**世界の最新ヘッドライン (AI和訳):**")
+                    st.write("**最新ニュース (AI和訳済):**")
                     for n in res['news']:
                         st.markdown(f"""<div class='news-box'>{'⭐' * n['score']}<br>
                         <div class='news-title-jp'>{n['title_jp']}</div>
                         <div class='news-title-en'>{n['title_en']}</div></div>""", unsafe_allow_html=True)
-    else: st.error("分析に失敗しました。")
-
-# --- 最後に重要：ライブラリのインストール指示 ---
-# GitHubの requirements.txt に googletrans==4.0.0-rc1 を追加する必要があります。
+    else: st.error("分析を実行してください。")
