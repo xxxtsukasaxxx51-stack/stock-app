@@ -96,4 +96,43 @@ if execute:
                     "今の価値": f"{current_value:,.0f}円",
                     "損益": f"{profit_loss:+,.0f}円",
                     "AI評価": f"{stars:.1f}★",
-                    "明日予測": f
+                    "明日予測": f"{diff_pct:+.2f}%",
+                    "raw_diff": diff_pct,
+                    "raw_stars": stars
+                })
+            except: continue
+
+    if results:
+        # --- レイアウト: シミュレーション結果 ---
+        st.subheader(f"📊 {time_span}前に {investment_amount:,.0f}円 投資していたら？")
+        
+        # 損益をカード形式で並べる
+        cols = st.columns(len(results))
+        for i, res in enumerate(results):
+            with cols[i]:
+                st.metric(label=res['銘柄'], value=res['今の価値'], delta=res['損益'])
+
+        st.markdown("---")
+        
+        # --- レイアウト: 詳細ランキング ---
+        col_t, col_g = st.columns([1.2, 1])
+        with col_t:
+            st.subheader("🏆 AI総合診断ランキング")
+            res_df = pd.DataFrame(results).sort_values(by="raw_stars", ascending=False)
+            st.table(res_df[["銘柄", "開始時価格", "現在価格", "AI評価", "明日予測"]])
+            
+        with col_g:
+            st.subheader("📈 成長率の比較 (%)")
+            fig, ax = plt.subplots(figsize=(10, 7))
+            for name, data in plot_data.items():
+                norm_price = (data['Close'] / data['Close'].iloc[0] - 1) * 100
+                ax.plot(data.index, norm_price, label=name, linewidth=2)
+            
+            plt.axhline(0, color='black', linestyle='--', alpha=0.3)
+            plt.ylabel("損益率 (%)")
+            plt.legend()
+            st.pyplot(fig)
+    else:
+        st.info("サイドバーから銘柄を選んで『実行』を押してください。")
+
+st.info("※日本株は円、米国株はドルベースの騰落をベースに簡易計算しています。")
