@@ -15,10 +15,8 @@ import google.generativeai as genai
 import random
 
 # --- 0. 基本設定とキャラクター画像URL ---
-# あなたのGitHub上の画像URL
 CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
 
-# APIキー設定
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except:
@@ -44,82 +42,71 @@ st.markdown(f"""
     .ad-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0; }}
     .ad-card {{ flex: 1; min-width: 280px; max-width: 500px; padding: 20px; border: 2px dashed rgba(150, 150, 150, 0.5); border-radius: 15px; background-color: rgba(150, 150, 150, 0.05); text-align: center; }}
 
-    /* キャラクターと透明ボタンを包むコンテナ */
-    .char-click-container {{
+    /* キャラクターコンテナ（最前面へ） */
+    .floating-container {{
         position: fixed;
-        bottom: 30px;
-        right: 30px;
-        z-index: 1000;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
         display: flex;
         flex-direction: column;
         align-items: center;
-        pointer-events: none; /* 下の要素に触れるように */
     }}
 
-    /* キャラクター画像の設定 */
-    .char-img-clickable {{
-        width: 150px;
+    /* キャラクター画像 */
+    .char-img {{
+        width: 140px;
         height: auto;
-        mix-blend-mode: multiply; /* 白背景透過 */
-        filter: contrast(110%) brightness(105%) drop-shadow(5px 5px 15px rgba(0,0,0,0.2));
+        mix-blend-mode: multiply;
+        filter: contrast(110%) brightness(105%) drop-shadow(5px 5px 15px rgba(0,0,0,0.3));
         animation: float 3s ease-in-out infinite;
+        pointer-events: none; /* 画像自体はクリックを透過させる */
     }}
 
-    /* 吹き出し */
-    .bubble {{
-        position: relative; background: #ffffff; border: 2px solid #3182ce; border-radius: 15px;
-        padding: 10px 15px; margin-bottom: 10px; font-size: 0.85em; color: #1a1a1a;
-        max-width: 180px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold;
-    }}
-    .bubble::after {{
-        content: ""; position: absolute; bottom: -10px; right: 40px;
-        border-width: 10px 10px 0; border-style: solid; border-color: #ffffff transparent;
-    }}
-
-    /* ポップオーバーのボタンを透明化してキャラに重ねる */
+    /* 透明ボタンをキャラに被せる */
     div[data-testid="stPopover"] {{
         position: fixed;
-        bottom: 30px;
-        right: 30px;
-        z-index: 1001;
+        bottom: 20px;
+        right: 20px;
+        z-index: 10000;
     }}
     div[data-testid="stPopover"] > button {{
-        width: 150px !important;
-        height: 150px !important;
+        width: 140px !important;
+        height: 140px !important;
         background-color: transparent !important;
         color: transparent !important;
         border: none !important;
         box-shadow: none !important;
-        pointer-events: auto;
+    }}
+
+    /* 吹き出し */
+    .bubble {{
+        position: relative; background: white; border: 2px solid #3182ce; border-radius: 15px;
+        padding: 8px 12px; margin-bottom: 10px; font-size: 0.8em; color: black;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-weight: bold; width: 160px; text-align: center;
     }}
 
     @keyframes float {{
-        0% {{ transform: translateY(0px) rotate(0deg); }}
-        50% {{ transform: translateY(-15px) rotate(2deg); }}
-        100% {{ transform: translateY(0px) rotate(0deg); }}
+        0% {{ transform: translateY(0px); }}
+        50% {{ transform: translateY(-10px); }}
+        100% {{ transform: translateY(0px); }}
     }}
 
     .disclaimer-box {{ font-size: 0.8em; opacity: 0.8; background-color: rgba(150, 150, 150, 0.1); padding: 20px; border-radius: 10px; line-height: 1.6; margin-top: 50px; border: 1px solid rgba(150, 150, 150, 0.2); }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. つぶやき・キャラクター・チャット配置 ---
-# キャラクターの表示（背面）
-current_msg = random.choice([
-    "ボクをクリックして相談してね！", 
-    "投資の悩み、ボクが聞くよ！",
-    "今の相場、どう思う？",
-    "気になる銘柄、教えて！"
-])
-
+# --- 3. キャラクター・チャット配置 ---
+# 背面：見た目
+current_msg = random.choice(["ボクをタップしてね！", "今の株価どう思う？", "投資の相談にのるよ！"])
 st.markdown(f"""
-    <div class="char-click-container">
+    <div class="floating-container">
         <div class="bubble">{current_msg}</div>
-        <img src="{CHARACTER_URL}" class="char-img-clickable">
+        <img src="{CHARACTER_URL}" class="char-img">
     </div>
     """, unsafe_allow_html=True)
 
-# 透明なボタン（前面：クリックでチャット起動）
+# 前面：透明ボタン
 with st.popover(""):
     st.markdown("### 🤖 アイモン投資相談室")
     if "messages" not in st.session_state: st.session_state.messages = []
@@ -136,15 +123,15 @@ with st.popover(""):
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except: st.error("エラーが発生しました。")
-    
-    if st.button("チャット履歴を消去"):
+    if st.button("履歴を消去"):
         st.session_state.messages = []
         st.rerun()
 
-# --- 4. メイン画面：市場指標 ---
+# --- 4. メイン画面 ---
 st.title("🤖 AIマーケット総合診断 Pro")
-st.caption("最新AIが市場を予測。右下のアイモンをタップしていつでも相談してね！")
+st.caption("最新AIが市場を予測。右下のアイモンをタップして相談してね！")
 
+# 指標
 @st.cache_data(ttl=300)
 def get_market_indices():
     indices = {"ドル円": "JPY=X", "日経平均": "^N225", "NYダウ": "^DJI"}
@@ -161,34 +148,41 @@ def get_market_indices():
 
 idx_data = get_market_indices()
 m1, m2, m3 = st.columns(3)
-
 def disp_m(col, lab, d, u=""):
     if d[0] is not None: col.metric(lab, f"{d[0]:,.2f}{u}", f"{d[1]:+,.2f}")
     else: col.metric(lab, "取得中...", "休止")
-
 disp_m(m1, "💴 ドル/円", idx_data['ドル円'], "円")
 disp_m(m2, "🇯🇵 日経平均", idx_data['日経平均'], "円")
 disp_m(m3, "🇺🇸 NYダウ", idx_data['NYダウ'], "ドル")
 
 st.markdown("---")
 
-# --- 5. 操作ステップ ---
+# --- 5. 銘柄選択・フリー入力 ---
 st.markdown("<div class='main-step'>STEP 1: 銘柄を選ぼう</div>", unsafe_allow_html=True)
 stock_presets = {
     "🇺🇸 米国株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL"},
-    "🇯🇵 日本株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T"},
-    "⚡ その他": {"ビットコイン": "BTC-USD", "金(Gold)": "GC=F"}
+    "🇯🇵 日本株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T"}
 }
-all_stocks = {}
-for items in stock_presets.values(): all_stocks.update(items)
-selected_names = st.multiselect("銘柄選択", list(all_stocks.keys()), default=["エヌビディア"])
+all_stocks_preset = {}
+for items in stock_presets.values(): all_stocks_preset.update(items)
+
+col_input1, col_input2 = st.columns([2, 1])
+with col_input1:
+    selected_names = st.multiselect("リストから選択", list(all_stocks_preset.keys()), default=["エヌビディア"])
+with col_input2:
+    free_input = st.text_input("ティッカー直接入力", placeholder="例: 9984.T, MSFT")
+
+# 選択銘柄と直接入力を統合
+final_targets = {name: all_stocks_preset[name] for name in selected_names}
+if free_input:
+    final_targets[free_input.upper()] = free_input.upper()
 
 st.markdown("<div class='main-step'>STEP 2: 条件設定</div>", unsafe_allow_html=True)
 c1, c2 = st.columns(2)
-with c1: f_inv = st.number_input("投資シミュレーション金額(円)", min_value=1000, value=100000)
+with c1: f_inv = st.number_input("投資金額(円)", min_value=1000, value=100000)
 with c2: 
-    time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "10年", "最大"], value="30日")
-    span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","10年":"10y","最大":"max"}
+    time_span = st.select_slider("分析期間", options=["1週間", "30日", "1年", "5年", "10年"], value="30日")
+    span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","10年":"10y"}
 
 execute = st.button("🚀 AI診断スタート！")
 
@@ -210,16 +204,15 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 6. 実行・診断ロジック ---
+# --- 6. 診断ロジック ---
 if "sentiment_analyzer" not in st.session_state:
     st.session_state.sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-if execute:
+if execute and final_targets:
     results, plot_data = [], {}
-    with st.spinner('AIが市場データを解析中...'):
-        for name in selected_names:
+    with st.spinner('市場データを解析中...'):
+        for name, symbol in final_targets.items():
             try:
-                symbol = all_stocks[name]
                 df = yf.download(symbol, period=span_map[time_span], progress=False)
                 if df.empty: continue
                 plot_data[name] = df
@@ -243,9 +236,9 @@ if execute:
                 else: avg = 3
 
                 up = pred > curr
-                if avg >= 3.5 and up: adv, col = f"🌟【{time_span}：強気】", "#d4edda"
-                elif avg <= 2.5 and not up: adv, col = f"⚠️【{time_span}：警戒】", "#f8d7da"
-                else: adv, col = f"😐【{time_span}：様子見】", "#e2e3e5"
+                if avg >= 3.5 and up: adv, col = f"🌟【強気】", "#d4edda"
+                elif avg <= 2.5 and not up: adv, col = f"⚠️【警戒】", "#f8d7da"
+                else: adv, col = f"😐【様子見】", "#e2e3e5"
                 results.append({"銘柄": name, "将来": f_inv * (pred / curr), "星": avg, "pred": pred, "news": news_list, "adv": adv, "col": col})
             except: continue
 
@@ -256,24 +249,18 @@ if execute:
         japanize_matplotlib.japanize()
         for name, data in plot_data.items():
             base = data['Close'].iloc[0]
-            line = ax.plot(data.index, data['Close']/base*100, label=name, linewidth=2.5)
+            line = ax.plot(data.index, data['Close']/base*100, label=name, linewidth=2)
             r = next(i for i in results if i['銘柄'] == name)
-            ax.scatter(data.index[-1] + timedelta(days=1), (r['pred']/base)*100, color=line[0].get_color(), marker='*', s=250, edgecolors='white', zorder=10)
+            ax.scatter(data.index[-1] + timedelta(days=1), (r['pred']/base)*100, color=line[0].get_color(), marker='*', s=200, edgecolors='white', zorder=10)
         ax.legend(); st.pyplot(fig)
 
         for res in results:
             st.markdown(f"### 🎯 {res['銘柄']}")
-            c_res1, c_res2 = st.columns([1, 2])
-            c_res1.metric(f"予想額({time_span})", f"{res['将来']:,.0f}円", f"{res['将来']-f_inv:+,.0f}円")
-            c_res2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']}</div>", unsafe_allow_html=True)
+            cr1, cr2 = st.columns([1, 2])
+            cr1.metric("予想額", f"{res['将来']:,.0f}円", f"{res['将来']-f_inv:+,.0f}円")
+            cr2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']}</div>", unsafe_allow_html=True)
             for n in res['news']:
                 st.markdown(f"<div class='news-box'>{'⭐' * n['score']} <a href='{n['link']}' target='_blank'><b>🔗 {n['title']}</b></a></div>", unsafe_allow_html=True)
 
 # --- 7. 免責事項 ---
-st.markdown("""
-    <div class="disclaimer-box">
-        <b>⚠️ 免責事項</b><br>
-        ● 本アプリは情報の提供を目的としており、投資勧誘を意図したものではありません。投資判断は自己責任で行ってください。<br>
-        ● 本アプリにはアフィリエイト広告が含まれており、開発者に報酬が支払われることがあります。[PR]
-    </div>
-""", unsafe_allow_html=True)
+st.markdown("""<div class="disclaimer-box"><b>⚠️ 免責事項</b><br>投資判断は自己責任で行ってください。本アプリには[PR]広告が含まれています。</div>""", unsafe_allow_html=True)
