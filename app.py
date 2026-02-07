@@ -19,7 +19,7 @@ matplotlib.use('Agg')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide", page_icon="🤖")
 
-# カスタムCSS（ダークモード対応版）
+# カスタムCSS（ダークモード対応・スマホ最適化）
 st.markdown("""
     <style>
     .main-step { color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }
@@ -48,10 +48,21 @@ st.markdown("""
         border: 2px solid rgba(150, 150, 150, 0.3);
         color: #1a1a1a;
     }
+    /* スマホ・PC両対応広告カード */
+    .ad-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
+        margin: 20px 0;
+    }
     .ad-card {
-        padding: 15px;
-        border: 1px solid rgba(150, 150, 150, 0.3);
-        border-radius: 10px;
+        flex: 1;
+        min-width: 280px;
+        max-width: 500px;
+        padding: 20px;
+        border: 2px dashed rgba(150, 150, 150, 0.5);
+        border-radius: 15px;
         background-color: rgba(150, 150, 150, 0.05);
         text-align: center;
     }
@@ -109,13 +120,11 @@ st.markdown("---")
 # --- 5. 操作ステップ案内 ---
 st.markdown("<div class='main-step'>STEP 1: 診断したい銘柄を選ぼう</div>", unsafe_allow_html=True)
 
-# ⚠️ ここがエラーの原因になりやすいポイント！丁寧に記述しました
 stock_presets = {
     "🇺🇸 米国株": {"テスラ": "TSLA", "エヌビディア": "NVDA", "Apple": "AAPL", "パランティア": "PLTR"},
     "🇯🇵 日本株": {"トヨタ": "7203.T", "ソニー": "6758.T", "任天堂": "7974.T", "三菱UFJ": "8306.T"},
     "⚡ その他": {"ビットコイン": "BTC-USD", "金(Gold)": "GC=F"}
 }
-
 all_stocks = {}
 for cat, items in stock_presets.items():
     all_stocks.update(items)
@@ -142,37 +151,30 @@ st.markdown(f"<div class='span-hint'>{span_hints[time_span]}<br>※期間を長�
 
 execute = st.button("🚀 AI診断スタート！")
 
-# --- 広告エリア（スマホ・PC両対応版） ---
+# --- 🌟 スマホ対応 広告エリア 🌟 ---
 st.markdown("---")
 st.write("### 💡 おすすめ投資サービス")
 link_dmm = "https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY"
 link_tossy = "https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y"
 
-# カラムを使わず、一つ一つの広告を独立したdivで並べることで
-# スマホでもPCでも適切な幅で表示されるようになります
 st.markdown(f"""
-    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;">
-        <div style="flex: 1; min-width: 300px; margin-bottom: 10px;">
-            <div class="ad-card">
-                <p style="font-weight: bold; margin-bottom: 5px;">📊 証券口座なら</p>
-                <a href="{link_dmm}" target="_blank" rel="nofollow" style="text-decoration: none; color: #4dabf7; font-weight: bold;">
-                    <div style="padding: 10px; border: 1px dashed #4dabf7; border-radius: 5px; margin-bottom: 5px;">DMM 株 で口座開設</div>
-                </a>
-                <p style="font-size: 0.7em; opacity: 0.7;">[広告：PR]</p>
-            </div>
-        </div>
-        <div style="flex: 1; min-width: 300px; margin-bottom: 10px;">
-            <div class="ad-card">
-                <p style="font-weight: bold; margin-bottom: 5px;">📱 投資アプリなら</p>
-                <a href="{link_tossy}" target="_blank" rel="nofollow" style="text-decoration: none; color: #51cf66; font-weight: bold;">
-                    <div style="padding: 10px; border: 1px dashed #51cf66; border-radius: 5px; margin-bottom: 5px;">ウルトラ投資アプリ【TOSSY】</div>
-                </a>
-                <p style="font-size: 0.7em; opacity: 0.7;">[広告：PR]</p>
-            </div>
-        </div>
+<div class="ad-container">
+    <div class="ad-card">
+        <p style="font-weight: bold; font-size: 1.1em; margin-bottom: 10px;">📊 証券口座なら</p>
+        <a href="{link_dmm}" target="_blank" rel="nofollow" style="text-decoration: none; color: #4dabf7; font-weight: bold;">
+            <div style="padding: 15px; background: #4dabf7; color: white; border-radius: 10px; margin-bottom: 10px;">DMM 株 で口座開設</div>
+        </a>
+        <p style="font-size: 0.8em; opacity: 0.7;">[広告：PR] 初心者にも使いやすい！</p>
     </div>
+    <div class="ad-card">
+        <p style="font-weight: bold; font-size: 1.1em; margin-bottom: 10px;">📱 投資アプリなら</p>
+        <a href="{link_tossy}" target="_blank" rel="nofollow" style="text-decoration: none; color: #51cf66; font-weight: bold;">
+            <div style="padding: 15px; background: #51cf66; color: white; border-radius: 10px; margin-bottom: 10px;">投資アプリ TOSSY</div>
+        </a>
+        <p style="font-size: 0.8em; opacity: 0.7;">[広告：PR] 資産管理をスマートに。</p>
+    </div>
+</div>
 """, unsafe_allow_html=True)
-
 st.markdown("---")
 
 # --- 6. 実行ロジック ---
@@ -252,7 +254,10 @@ if execute:
                     st.metric(f"予想額({time_span})", f"{res['将来価値']:,.0f}円", f"{diff:+,.0f}円")
                 with col_res2:
                     st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
-                st.write("**AIが分析した最新ニュース:**")
+                
+                # --- 星の指標の解説を追加 ---
+                st.write("**AIニュース分析（星の指標）:**")
+                st.caption("⭐が多いほど好材料（期待）、少ないほど悪材料（警戒）を意味します。")
                 for n in res['news']:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']} <a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a></div>", unsafe_allow_html=True)
 
