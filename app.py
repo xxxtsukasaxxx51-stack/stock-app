@@ -13,19 +13,18 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 
-# --- 1. ページ設定 (テーマカラーを意識) ---
-st.set_page_config(page_title="AI投資診断 Premium", layout="wide", initial_sidebar_state="expanded")
+# --- 1. ページ設定 ---
+st.set_page_config(page_title="AI投資シミュレーター", layout="wide")
 
-# --- カスタムCSSでデザインを整える ---
+# カスタムCSS
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { width: 100%; border-radius: 20px; height: 3em; background-color: #007bff; color: white; border: none; }
-    .stMetric { background-color: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .main { background-color: #f8f9fa; }
+    .stMetric { background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("💎 AI銘柄診断 Premium")
+st.title("💰 AI投資診断 & 損益シミュレーター")
 st.markdown("---")
 
 # --- 2. AIモデルの読み込み ---
@@ -37,29 +36,27 @@ analyzer = load_ai()
 
 # --- 3. サイドバー設定 ---
 with st.sidebar:
-    st.header("⚙️ 設定")
+    st.header("⚙️ シミュレーション設定")
+    # ★追加：投資金額の設定
+    investment_amount = st.number_input("もし、開始日にいくら投資してたら？(円)", min_value=1000, value=100000, step=10000)
+    
     stocks = {
         "テスラ": "TSLA", "パランティア": "PLTR", "トヨタ": "7203.T",
         "任天堂": "7974.T", "エヌビディア": "NVDA", "Apple": "AAPL",
         "ソニー": "6758.T", "ソフトバンクG": "9984.T"
     }
-    selected_names = st.multiselect("分析銘柄を選択", list(stocks.keys()), default=["エヌビディア", "テスラ"])
-    time_span = st.select_slider("表示期間", options=["1週間", "30日", "1年", "5年", "10年"], value="30日")
+    selected_names = st.multiselect("分析銘柄", list(stocks.keys()), default=["エヌビディア", "テスラ", "トヨタ"])
+    time_span = st.select_slider("シミュレーション期間", options=["1週間", "30日", "1年", "5年", "10年"], value="1年")
     span_map = {"1週間": "7d", "30日": "1mo", "1年": "1y", "5年": "5y", "10年": "10y"}
     
-    st.markdown("---")
-    execute = st.button("🚀 分析を開始する")
-
-# --- 解説パネル ---
-with st.expander("❓ ニュース評価とは？"):
-    st.info("世界中の最新ニュースをAIが読み取り、投資家の感情を1.0〜5.0の星数で数値化しています。")
+    execute = st.button("🚀 シミュレーション実行")
 
 # --- 4. 実行ロジック ---
 if execute:
     results = []
     plot_data = {} 
     
-    with st.spinner('✨ AIが市場の波動を解析中...'):
+    with st.spinner('過去のデータとAI予測を計算中...'):
         for name in selected_names:
             try:
                 symbol = stocks[name]
@@ -67,69 +64,36 @@ if execute:
                 if len(df) < 2: continue
                 plot_data[name] = df
 
-                # 予測計算
+                # 損益計算
+                start_price = float(df['Close'].iloc[0])
+                current_price = float(df['Close'].iloc[-1])
+                return_rate = (current_price / start_price)
+                
+                # 今の価値 = 投資額 × 騰落率
+                current_value = investment_amount * return_rate
+                profit_loss = current_value - investment_amount
+
+                # AI予測（明日）
                 y_data = df['Close'].tail(30).values.reshape(-1, 1)
                 X_data = np.arange(len(y_data)).reshape(-1, 1)
                 model = LinearRegression(); model.fit(X_data, y_data)
                 pred_price = model.predict([[len(y_data)]])[0][0]
-                last_price = float(df['Close'].iloc[-1])
-                diff_pct = ((pred_price - last_price) / last_price) * 100
+                diff_pct = ((pred_price - current_price) / current_price) * 100
                 
-                # ニュース取得
+                # ニュース評価
                 is_japan = symbol.endswith(".T")
-                if is_japan:
-                    url = f"https://news.google.com/rss/search?q={urllib.parse.quote(name)}&hl=ja&gl=JP&ceid=JP:ja"
-                else:
-                    url = f"https://news.google.com/rss/search?q={urllib.parse.quote(symbol.split('.')[0])}&hl=en-US&gl=US&ceid=US:en"
-                
+                lang_url = f"&hl=ja&gl=JP&ceid=JP:ja" if is_japan else f"&hl=en-US&gl=US&ceid=US:en"
+                query = name if is_japan else symbol.split('.')[0]
+                url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query)}{lang_url}"
                 feed = feedparser.parse(url)
-                stars, count, news_title = 0, 0, "ニュースなし"
-                if feed.entries:
-                    news_title = feed.entries[0].title
-                    for entry in feed.entries[:3]:
-                        res = analyzer(entry.title)[0]
-                        stars += int(res['label'].split()[0])
-                        count += 1
-                avg_stars = stars / count if count > 0 else 3
+                
+                stars = sum([int(analyzer(e.title)[0]['label'].split()[0]) for e in feed.entries[:3]]) / 3 if feed.entries else 3
                 
                 results.append({
-                    "name": name, "price": last_price, "pred": pred_price, 
-                    "diff": diff_pct, "stars": avg_stars, "news": news_title
-                })
-            except: continue
-
-    if results:
-        # --- レイアウト1: メトリクス表示 ---
-        st.subheader("📊 リアルタイム要約")
-        cols = st.columns(len(results))
-        for i, res in enumerate(results):
-            with cols[i]:
-                color = "normal" if res['diff'] >= 0 else "inverse"
-                st.metric(label=res['name'], value=f"${res['price']:.2f}", delta=f"{res['diff']:.2f}% (明日予測)", delta_color=color)
-
-        # --- レイアウト2: ランキングとグラフ ---
-        col_table, col_graph = st.columns([1, 1.5])
-        
-        with col_table:
-            st.subheader("🏆 総合評価")
-            res_df = pd.DataFrame(results).sort_values(by="stars", ascending=False)
-            st.table(res_df[["name", "stars", "news"]].rename(columns={"name":"銘柄", "stars":"AI評価", "news":"最新ニュース"}))
-
-        with col_graph:
-            st.subheader("📈 トレンド予測")
-            plt.style.use('ggplot') # おしゃれなグラフスタイル
-            fig, ax = plt.subplots(figsize=(10, 6))
-            for name, data in plot_data.items():
-                norm_price = data['Close'] / data['Close'].iloc[0] * 100
-                line = ax.plot(data.index, norm_price, label=name, linewidth=2)
-                
-                # 予測地点に星
-                pred_val = [r['pred'] for r in results if r['name']==name][0]
-                norm_pred = (pred_val / data['Close'].iloc[0]) * 100
-                ax.scatter(data.index[-1] + pd.Timedelta(days=1), norm_pred, color=line[0].get_color(), marker='*', s=300, edgecolors='black', zorder=5)
-            
-            plt.axhline(100, color='#333333', linestyle='--', alpha=0.2)
-            plt.legend()
-            st.pyplot(fig)
-    else:
-        st.error("分析対象を選択して実行してください。")
+                    "銘柄": name,
+                    "開始時価格": f"${start_price:.2f}" if not is_japan else f"{start_price:.0f}円",
+                    "現在価格": f"${current_price:.2f}" if not is_japan else f"{current_price:.0f}円",
+                    "今の価値": f"{current_value:,.0f}円",
+                    "損益": f"{profit_loss:+,.0f}円",
+                    "AI評価": f"{stars:.1f}★",
+                    "明日予測": f
