@@ -236,6 +236,6 @@ st.markdown(f"""
     <div style="background:white; color:#1a202c; border:2px solid #3182ce; border-radius:12px; padding:8px; font-size:0.8rem; font-weight:bold; width:180px; text-align:center; margin-bottom:10px; pointer-events:auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         {st.session_state.char_msg}
     </div>
-    <img src="{CHARACTER_URL}" class="char-img">
+    <img src="https://raw.githubusercontent.com/xxxtsukasaxxx51-stack/stock-app/d10dedd0f34fe090914a9e981f45a667834bd50c/Gemini_Generated_Image_j2mypyj2mypyj2my.png" class="char-img">
 </div>
 """, unsafe_allow_html=True)
