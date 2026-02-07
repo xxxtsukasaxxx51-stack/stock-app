@@ -9,7 +9,7 @@ from sklearn.linear_model import LinearRegression
 import urllib.parse
 import numpy as np
 from datetime import timedelta
-from deep_translator import GoogleTranslator # ★新しい和訳ライブラリに変更
+from deep_translator import GoogleTranslator
 
 # --- 0. グラフ表示の安定化設定 ---
 import matplotlib
@@ -18,21 +18,21 @@ matplotlib.use('Agg')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide")
 
-# カスタムCSS
+# カスタムCSS（リンクボタン用のスタイルを追加）
 st.markdown("""
     <style>
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .news-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 8px; }
+    .news-box { background-color: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 12px; }
     .news-title-jp { font-weight: bold; color: #333; margin-bottom: 4px; }
-    .news-title-en { font-size: 0.8em; color: #888; font-style: italic; }
+    .news-title-en { font-size: 0.8em; color: #888; font-style: italic; margin-bottom: 8px; }
     .advice-box { padding: 15px; border-radius: 10px; margin-top: 10px; font-weight: bold; border: 1px solid #ddd; }
+    .read-more { font-size: 0.8em; color: #007bff; text-decoration: none; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. AIモデルの準備 ---
 @st.cache_resource
 def load_ai():
-    # 感情分析AIのみキャッシュ
     return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
 analyzer = load_ai()
@@ -56,7 +56,7 @@ def get_market_indices():
 indices_data = get_market_indices()
 
 # --- 4. メイン画面 ---
-st.title("🌍 AIマーケット総合診断 Pro (最新版)")
+st.title("🌍 AIマーケット総合診断 Pro (リンク対応)")
 
 m_col1, m_col2, m_col3 = st.columns(3)
 def display_metric(col, label, data_tuple, unit=""):
@@ -99,7 +99,7 @@ if execute:
     results = []
     plot_data = {}
     
-    with st.spinner('世界中のニュースを和訳・分析中...'):
+    with st.spinner('ニュースと株価をリンク中...'):
         for name in selected_names:
             try:
                 symbol = all_stocks[name]
@@ -114,11 +114,11 @@ if execute:
                 model = LinearRegression().fit(X_reg, y_reg)
                 pred_p = float(model.predict([[len(y_reg)]])[0][0])
                 
-                # ニュース取得
+                # ニュース取得 (URLも取得)
                 is_j = ".T" in symbol
                 search_q = name.split("(")[-1].replace(")", "") if "自由入力" in name else (name if is_j else symbol)
-                url = f"https://news.google.com/rss/search?q={urllib.parse.quote(search_q)}&hl={'ja' if is_j else 'en'}&gl={'JP' if is_j else 'US'}"
-                feed = feedparser.parse(url)
+                url_news = f"https://news.google.com/rss/search?q={urllib.parse.quote(search_q)}&hl={'ja' if is_j else 'en'}&gl={'JP' if is_j else 'US'}"
+                feed = feedparser.parse(url_news)
                 
                 news_details, stars_sum = [], 0
                 if feed.entries:
@@ -126,33 +126,37 @@ if execute:
                         score = int(analyzer(entry.title)[0]['label'].split()[0])
                         stars_sum += score
                         
-                        # ★和訳処理 (deep-translator を使用)
+                        # 和訳
                         title_jp = entry.title
                         if not is_j:
                             try:
-                                # シンプルに翻訳実行
                                 title_jp = GoogleTranslator(source='en', target='ja').translate(entry.title)
                             except: pass
-                        news_details.append({"title_jp": title_jp, "title_en": entry.title, "score": score})
+                        
+                        # 記事URLを格納
+                        news_details.append({
+                            "title_jp": title_jp, 
+                            "title_en": entry.title, 
+                            "score": score,
+                            "link": entry.link # ★ここを追加
+                        })
                     avg_stars = stars_sum / len(news_details)
                 else: avg_stars = 3
                 
-                # アドバイス表示
+                # アドバイス
                 trend_up = pred_p > current_price
-                if avg_stars >= 3.5 and trend_up: advice, color = "🌟【絶好調】期待大です！", "#e8f5e9"
-                elif avg_stars <= 2.5 and not trend_up: advice, color = "⚠️【警戒】慎重に！", "#ffebee"
-                elif avg_stars <= 2.5 and trend_up: advice, color = "🤔【チグハグ】悪材料出尽くしかも？", "#fff3e0"
-                elif avg_stars >= 3.5 and not trend_up: advice, color = "❓【チグハグ】様子見推奨。", "#e1f5fe"
-                else: advice, color = "😐【様子見】静かな市場です。", "#f5f5f5"
+                if avg_stars >= 3.5 and trend_up: advice, color = "🌟【絶好調】勢いに乗っています！", "#e8f5e9"
+                elif avg_stars <= 2.5 and not trend_up: advice, color = "⚠️【警戒】今は静観が良さそうです。", "#ffebee"
+                elif avg_stars <= 2.5 and trend_up: advice, color = "🤔【チグハグ】悪材料に負けない買いがあります。", "#fff3e0"
+                elif avg_stars >= 3.5 and not trend_up: advice, color = "❓【チグハグ】いい材料が無視されています。", "#e1f5fe"
+                else: advice, color = "😐【様子見】大きな動きを待っています。", "#f5f5f5"
 
                 results.append({
                     "銘柄": name, "将来価値": future_investment * (pred_p / current_price), 
                     "評価": avg_stars, "pred": pred_p, "news": news_details,
                     "symbol": symbol, "advice": advice, "color": color
                 })
-            except Exception as e:
-                st.write(f"エラー報告: {name} の分析中に問題が発生しました。")
-                continue
+            except: continue
 
     if results:
         # グラフ
@@ -171,7 +175,7 @@ if execute:
 
         # 診断詳細
         st.markdown("---")
-        st.subheader("🏆 AI診断詳細 & 和訳ニュース")
+        st.subheader("🏆 AI診断詳細 & ニュースリンク")
         for res in results:
             with st.expander(f"📌 {res['銘柄']} の診断詳細", expanded=True):
                 col_m, col_n = st.columns([1, 2])
@@ -180,9 +184,16 @@ if execute:
                     st.write(f"**AI評価:** {res['評価']:.1f} ★")
                     st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
                 with col_n:
-                    st.write("**最新ニュース (AI和訳済):**")
+                    st.write("**最新ニュース（クリックで記事へ）:**")
                     for n in res['news']:
-                        st.markdown(f"""<div class='news-box'>{'⭐' * n['score']}<br>
-                        <div class='news-title-jp'>{n['title_jp']}</div>
-                        <div class='news-title-en'>{n['title_en']}</div></div>""", unsafe_allow_html=True)
+                        # 和訳タイトルをリンクにして、下に英語を添える
+                        st.markdown(f"""
+                        <div class='news-box'>
+                            {'⭐' * n['score']}<br>
+                            <a href='{n['link']}' target='_blank' style='text-decoration: none;'>
+                                <div class='news-title-jp'>🔗 {n['title_jp']}</div>
+                            </a>
+                            <div class='news-title-en'>{n['title_en']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
     else: st.error("分析を実行してください。")
