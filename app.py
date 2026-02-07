@@ -33,7 +33,7 @@ if "results" not in st.session_state:
 if "plot_data" not in st.session_state:
     st.session_state.plot_data = None
 
-# --- 3. CSS：透過・横並び広告・吹き出し ---
+# --- 3. CSS：透過・横並び広告・デザイン ---
 st.markdown(f"""
     <style>
     .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }}
@@ -60,14 +60,36 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. キャラクター表示 ---
+# --- 4. 市場指標取得関数の定義（ここが重要！） ---
+@st.cache_data(ttl=300)
+def get_market_indices():
+    indices = {"ドル円": "JPY=X", "日経平均": "^N225", "NYダウ": "^DJI"}
+    data = {}
+    for name, ticker in indices.items():
+        try:
+            info = yf.download(ticker, period="1mo", progress=False)
+            if not info.empty:
+                curr, prev = info['Close'].iloc[-1], info['Close'].iloc[-2]
+                # Series型をfloatに変換して格納
+                data[name] = (float(curr), float(curr - prev))
+        except:
+            data[name] = (None, None)
+    return data
+
+# --- 5. メイン画面：市場指標の表示 ---
+st.title("🤖 AIマーケット総合診断 Pro")
+
+# キャラクター表示
 st.markdown(f"""<div class="floating-char-box"><div class="auto-quote-bubble">{st.session_state.char_msg}</div><img src="{CHARACTER_URL}" class="char-img"></div>""", unsafe_allow_html=True)
 
-# --- 5. メイン画面：市場指標 ---
-st.title("🤖 AIマーケット総合診断 Pro")
-idx_data = get_market_indices() # キャッシュ関数は前述のものを想定
+idx_data = get_market_indices()
 m1, m2, m3 = st.columns(3)
-# (指標表示は省略：前述のコードと同様)
+if idx_data.get("ドル円") and idx_data["ドル円"][0]:
+    m1.metric("💴 ドル/円", f"{idx_data['ドル円'][0]:,.2f}円", f"{idx_data['ドル円'][1]:+,.2f}")
+if idx_data.get("日経平均") and idx_data["日経平均"][0]:
+    m2.metric("🇯🇵 日経平均", f"{idx_data['日経平均'][0]:,.2f}円", f"{idx_data['日経平均'][1]:+,.2f}")
+if idx_data.get("NYダウ") and idx_data["NYダウ"][0]:
+    m3.metric("🇺🇸 NYダウ", f"{idx_data['NYダウ'][0]:,.2f}ドル", f"{idx_data['NYダウ'][1]:+,.2f}")
 
 st.markdown("---")
 
@@ -78,11 +100,12 @@ c_in1, c_in2 = st.columns([2, 1])
 selected_names = c_in1.multiselect("リストから選択", list(stock_presets.keys()), default=["エヌビディア"])
 free_input = c_in2.text_input("直接入力 (例: MSFT, 9984.T)", "")
 final_targets = {name: stock_presets[name] for name in selected_names}
-if free_input: final_targets[free_input.upper()] = free_input.upper()
+if free_input:
+    final_targets[free_input.upper()] = free_input.upper()
 
 st.markdown("<div class='main-step'>STEP 2: 条件設定</div>", unsafe_allow_html=True)
 c1, c2 = st.columns(2)
-f_inv = c1.number_input("金額(円)", min_value=1000, value=100000)
+f_inv = c1.number_input("投資金額(円)", min_value=1000, value=100000)
 time_span = c2.select_slider("分析期間", options=["1週間", "30日", "1年", "5年"], value="30日")
 span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y"}
 
@@ -94,21 +117,19 @@ if st.button("🚀 AI診断スタート！"):
     if "sentiment_analyzer" not in st.session_state:
         st.session_state.sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
-    with st.spinner('AIが予測とニュースを分析中...'):
+    with st.spinner('AIが市場データとニュースを読み取っています...'):
         for name, symbol in final_targets.items():
             try:
                 df = yf.download(symbol, period=span_map[time_span], progress=False)
                 if df.empty: continue
                 plot_data_temp[name] = df
                 
-                # 線形回帰予測
                 curr = float(df['Close'].iloc[-1])
                 y_reg = df['Close'].tail(20).values.reshape(-1, 1)
                 X_reg = np.arange(len(y_reg)).reshape(-1, 1)
                 model = LinearRegression().fit(X_reg, y_reg)
                 pred = float(model.predict([[len(y_reg)+5]])[0][0])
                 
-                # ニュースと感情分析
                 is_j = ".T" in symbol
                 q = name if is_j else symbol
                 url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=ja&gl=JP"
@@ -135,47 +156,44 @@ if st.button("🚀 AI診断スタート！"):
     st.session_state.results = results_temp
     st.session_state.plot_data = plot_data_temp
     
-    # キャラ更新
     if sentiments_all:
         avg_v = sum(sentiments_all)/len(sentiments_all)
-        if avg_v >= 3.7: st.session_state.char_msg = "AIの気分も最高だよ！攻めてみる？🚀"
-        elif avg_v <= 2.3: st.session_state.char_msg = "うーん、少し怖いデータが出てるね…☔"
-        else: st.session_state.char_msg = "分析完了！今はどっしり構えて良さそう☕"
+        if avg_v >= 3.7: st.session_state.char_msg = "市場はかなり活気があるね！期待しちゃう！🚀"
+        elif avg_v <= 2.3: st.session_state.char_msg = "うーん、少し用心したほうがいいかもしれないね☔"
+        else: st.session_state.char_msg = "分析完了！今は落ち着いて見守ろう☕"
     st.rerun()
 
-# --- 7. 結果表示エリア ---
+# --- 7. 診断結果の表示（星マーク・AI感情値復活） ---
 if st.session_state.results:
     st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
     
-    # グラフ表示（予測ターゲットの星★を追加）
+    # グラフ：将来の予想地点に★マークを表示
     fig, ax = plt.subplots(figsize=(10, 4))
     japanize_matplotlib.japanize()
     for res in st.session_state.results:
         name = res['銘柄']
         df = st.session_state.plot_data[name]
         base = df['Close'].iloc[0]
-        # 成長率(%)でプロット
         line = ax.plot(df.index, df['Close']/base*100, label=name)
-        # ★予測ターゲットプロット★
+        # 予測地点を星★でプロット
         ax.scatter(df.index[-1] + timedelta(days=5), (res['pred_val']/base)*100, 
-                   marker='*', s=200, color=line[0].get_color(), edgecolors='black', label=f"{name} 予想地点", zorder=5)
+                   marker='*', s=200, color=line[0].get_color(), edgecolors='black', zorder=5)
     ax.set_ylabel("成長率 (%)")
     ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
     st.pyplot(fig)
     
-    # 詳細カード
+    # 詳細カードとニュース
     for res in st.session_state.results:
         st.markdown(f"### 🎯 {res['銘柄']}")
         c_res1, c_res2 = st.columns([1, 2])
         c_res1.metric("予想額", f"{res['将来']:,.0f}円", f"{res['gain']:+,.0f}円")
         c_res2.markdown(f"<div class='advice-box' style='background-color: {res['col']};'>{res['adv']}</div>", unsafe_allow_html=True)
         
-        # 感情スコアと詳細（復活！）
         st.markdown(f"<div class='sentiment-badge'>AI感情分析値: {res['stars']:.1f} / 5.0 {'⭐' * int(res['stars'])}</div>", unsafe_allow_html=True)
         for n in res['news']:
             st.markdown(f"<div class='news-box'>{'★' * n['score']} <a href='{n['link']}' target='_blank'><b>{n['title']}</b></a></div>", unsafe_allow_html=True)
 
-# 広告
+# 広告：横並び表示
 st.markdown("""<div class="ad-container">
     <div class="ad-card">📊 証券口座なら<br><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank">DMM 株 口座開設 [PR]</a></div>
     <div class="ad-card">📱 投資アプリなら<br><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank">投資アプリ TOSSY [PR]</a></div>
