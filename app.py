@@ -38,7 +38,7 @@ st.markdown("""
 
 st.title("🤖 AIマーケット総合診断 Pro")
 
-# --- 💡 解説セクション（ここに説明が入っています） ---
+# --- 💡 解説セクション ---
 with st.expander("💡 感情指数と分析期間のヒント"):
     st.markdown("""
     ### 📊 感情指数（AI期待値）とは？
@@ -52,30 +52,59 @@ with st.expander("💡 感情指数と分析期間のヒント"):
 
 st.markdown("<div class='main-step'>STEP 1 & 2: 銘柄選びと条件設定</div>", unsafe_allow_html=True)
 
-# 銘柄選択
-popular_stocks = {"🇺🇸 エヌビディア": "NVDA", "🇺🇸 テスラ": "TSLA", "🇯🇵 トヨタ": "7203.T", "🇯🇵 三菱UFJ": "8306.T"}
-c_sel, c_free = st.columns([1, 1])
-selected_popular = c_sel.multiselect("🔥 人気銘柄", list(popular_stocks.keys()))
-free_input = c_free.text_input("✍️ 自由入力 (例: AAPL, 9984.T)", placeholder="カンマ区切り")
+# --- 🎯 銘柄リストの大幅拡充 ---
+stock_master = {
+    "🇺🇸 米国成長株": {
+        "エヌビディア (NVDA)": "NVDA", "テスラ (TSLA)": "TSLA", "アップル (AAPL)": "AAPL",
+        "マイクロソフト (MSFT)": "MSFT", "アマゾン (AMZN)": "AMZN", "グーグル (GOOGL)": "GOOGL",
+        "メタ (META)": "META", "アドバンスト・マイクロ (AMD)": "AMD"
+    },
+    "🇺🇸 米国配当・安定株": {
+        "コカ・コーラ (KO)": "KO", "マクドナルド (MCD)": "MCD", "ジョンソン・エンド・J (JNJ)": "JNJ",
+        "プロクター・ギャンブル (PG)": "PG", "ビザ (V)": "V"
+    },
+    "🇯🇵 日本主力株": {
+        "トヨタ自動車 (7203.T)": "7203.T", "三菱UFJ (8306.T)": "8306.T", "ソフトバンクG (9984.T)": "9984.T",
+        "任天堂 (7974.T)": "7974.T", "ソニーグループ (6758.T)": "6758.T", "ファーストリテイ (9983.T)": "9983.T"
+    },
+    "🇯🇵 日本高配当・商社": {
+        "三菱商事 (8058.T)": "8058.T", "三井物産 (8031.T)": "8031.T", "日本電信電話 (9432.T)": "9432.T",
+        "日本たばこ産業 (2914.T)": "2914.T", "武田薬品 (4502.T)": "4502.T"
+    },
+    "📈 指数・ETF": {
+        "S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ", "日経平均 (1321.T)": "1321.T"
+    }
+}
 
-# 統合
-final_symbols = [popular_stocks[name] for name in selected_popular]
+# フラットなリストを作成
+flat_options = {}
+for category, stocks in stock_master.items():
+    for name, code in stocks.items():
+        flat_options[f"[{category}] {name}"] = code
+
+c_sel, c_free = st.columns([1, 1])
+selected_popular_keys = c_sel.multiselect("🔥 カテゴリ別・人気銘柄から選択", list(flat_options.keys()))
+free_input = c_free.text_input("✍️ 自由に入力 (例: NFLX, 6501.T)", placeholder="カンマ区切りで入力")
+
+# 選択・入力された銘柄を統合
+final_symbols = [flat_options[key] for key in selected_popular_keys]
 if free_input:
     final_symbols.extend([s.strip().upper() for s in free_input.split(",") if s.strip()])
-final_symbols = list(dict.fromkeys(final_symbols))
+final_symbols = list(dict.fromkeys(final_symbols)) # 重複削除
 
 c_in1, c_in2 = st.columns([1, 1])
-f_inv = c_in1.number_input("シミュレーション金額(円)", min_value=1000, value=100000)
-time_span = st.select_slider("分析期間（長期ほど成長の本質を測ります）", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="1年")
+f_inv = c_in1.number_input("シミュレーション金額(円)", min_value=1000, value=100000, step=10000)
+time_span = st.select_slider("分析期間（長期ほど企業の成長本質を測ります）", options=["1週間", "30日", "1年", "5年", "全期間(Max)"], value="1年")
 span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","全期間(Max)":"max"}
 
+# --- 5. 実行ロジック ---
 if st.button("🚀 AI診断スタート"):
     if not final_symbols:
         st.error("銘柄を入力してください。")
     else:
         results = []
         plot_data = {}
-        with st.spinner('AI解析中...'):
+        with st.spinner('市場データとニュースを解析中...'):
             for symbol in final_symbols:
                 try:
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
@@ -116,7 +145,7 @@ if st.button("🚀 AI診断スタート"):
                 r1.metric("5日後の予想資産", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
                 r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (AI総合スコア: ⭐{res['stars']})</div>", unsafe_allow_html=True)
                 
-                # ニュース表示
+                # ニュース表示 (パッと見)
                 for n in res['news']:
                     st.markdown(f"<div class='news-card'><span class='news-stars'>⭐{n['star']}</span><a href='{n['link']}' target='_blank' style='text-decoration:none;color:inherit;'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
