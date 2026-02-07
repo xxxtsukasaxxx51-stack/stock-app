@@ -17,6 +17,14 @@ matplotlib.use('Agg')
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット総合診断 Pro", layout="wide")
 
+# カスタムCSS
+st.markdown("""
+    <style>
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .news-box { background-color: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 3px solid #007bff; margin-bottom: 5px; font-size: 0.9em; }
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- 2. 指標データの取得 ---
 @st.cache_data(ttl=300)
 def get_market_indices():
@@ -54,7 +62,7 @@ def load_ai():
     return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 analyzer = load_ai()
 
-# --- 5. サイドバー ---
+# --- 5. サイドバー（自由入力フォーム復活） ---
 with st.sidebar:
     st.header("🔍 銘柄の選択")
     stock_presets = {
@@ -65,6 +73,16 @@ with st.sidebar:
     all_stocks = {}
     for cat, items in stock_presets.items(): all_stocks.update(items)
     selected_names = st.multiselect("リストから選択", list(all_stocks.keys()), default=["エヌビディア", "トヨタ"])
+    
+    # ★自由入力フォーム復活
+    st.markdown("---")
+    st.subheader("✍️ 自由に入力")
+    custom_symbol = st.text_input("例: NFLX (Netflix), 6752.T (パナソニック)", "")
+    if custom_symbol:
+        custom_name = f"自由入力({custom_symbol})"
+        all_stocks[custom_name] = custom_symbol
+        if custom_name not in selected_names:
+            selected_names.append(custom_name)
     
     st.markdown("---")
     future_investment = st.number_input("投資金額(円)", min_value=1000, value=100000)
@@ -77,7 +95,7 @@ if execute:
     results = []
     plot_data = {}
     
-    with st.spinner('データを解析中...'):
+    with st.spinner('世界中のニュースと株価を分析中...'):
         for name in selected_names:
             try:
                 symbol = all_stocks[name]
@@ -85,66 +103,83 @@ if execute:
                 if df.empty: continue
                 plot_data[name] = df
                 
-                # 未来予測計算
+                # 未来予測
                 current_price = float(df['Close'].iloc[-1])
                 y_reg = df['Close'].tail(20).values.reshape(-1, 1)
                 X_reg = np.arange(len(y_reg)).reshape(-1, 1)
                 model = LinearRegression().fit(X_reg, y_reg)
                 pred_p = float(model.predict([[len(y_reg)]])[0][0])
                 
-                # ニュース解析
+                # ニュース解析（見出し詳細取得）
                 is_j = ".T" in symbol
-                q = name if is_j else symbol
-                url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl={'ja' if is_j else 'en'}&gl={'JP' if is_j else 'US'}"
+                search_q = name.split("(")[-1].replace(")", "") if "自由入力" in name else (name if is_j else symbol)
+                url = f"https://news.google.com/rss/search?q={urllib.parse.quote(search_q)}&hl={'ja' if is_j else 'en'}&gl={'JP' if is_j else 'US'}"
                 feed = feedparser.parse(url)
-                stars = sum([int(analyzer(e.title)[0]['label'].split()[0]) for e in feed.entries[:3]]) / 3 if feed.entries else 3
                 
-                results.append({"銘柄": name, "将来価値": future_investment * (pred_p / current_price), "評価": stars, "pred": pred_p, "current": current_price})
+                news_details = []
+                stars_sum = 0
+                if feed.entries:
+                    for entry in feed.entries[:3]:
+                        res = analyzer(entry.title)[0]
+                        score = int(res['label'].split()[0])
+                        stars_sum += score
+                        news_details.append({"title": entry.title, "score": score})
+                    avg_stars = stars_sum / len(news_details)
+                else:
+                    avg_stars = 3
+                
+                results.append({
+                    "銘柄": name, 
+                    "将来価値": future_investment * (pred_p / current_price), 
+                    "評価": avg_stars, 
+                    "pred": pred_p, 
+                    "news": news_details,
+                    "symbol": symbol
+                })
             except: continue
 
     if results:
+        # 1. グラフ表示
         st.subheader("📈 トレンド予測グラフ")
         fig, ax = plt.subplots(figsize=(12, 6))
-        
         for name, data in plot_data.items():
-            # 1. 過去のデータをプロット（開始を100とする）
-            base_price = data['Close'].iloc[0]
-            norm_p = data['Close'] / base_price * 100
-            line = ax.plot(data.index, norm_p, label=name, linewidth=2, marker='o' if time_span=="1週間" else None)
+            base_p = data['Close'].iloc[0]
+            norm_p = data['Close'] / base_p * 100
+            line = ax.plot(data.index, norm_p, label=name, linewidth=2)
             color = line[0].get_color()
             
-            # 2. 未来の日付を計算（最新の日の翌日）
-            last_date = data.index[-1]
-            future_date = last_date + timedelta(days=1)
-            
-            # 3. 予測値を正規化してプロット
+            # 未来の星
             res_item = next(r for r in results if r['銘柄'] == name)
-            norm_pred = (res_item['pred'] / base_price) * 100
-            
-            # 4. 最新点と予測星印を点線で結ぶ
-            ax.plot([last_date, future_date], [norm_p.iloc[-1], norm_pred], color=color, linestyle='--', alpha=0.6)
-            
-            # 5. 未来の地点に大きな星を描画
-            ax.scatter(future_date, norm_pred, color=color, marker='*', s=400, edgecolors='black', zorder=10, label=f"{name} 予測")
+            norm_pred = (res_item['pred'] / base_p) * 100
+            future_date = data.index[-1] + timedelta(days=1)
+            ax.plot([data.index[-1], future_date], [norm_p.iloc[-1], norm_pred], color=color, linestyle='--', alpha=0.5)
+            ax.scatter(future_date, norm_pred, color=color, marker='*', s=350, edgecolors='black', zorder=10)
         
         plt.axhline(100, color='black', linestyle='-', alpha=0.1)
-        plt.title(f"株価推移とAIによる明日予測 ({time_span})", fontsize=14)
-        plt.ylabel("成長率 (%)")
-        plt.grid(True, alpha=0.2)
-        # 凡例を整理（予測と実線を分ける）
-        handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles[:len(selected_names)], labels[:len(selected_names)], loc='upper left')
+        plt.legend(loc='upper left')
         st.pyplot(fig)
 
-        # 診断結果を下に表示
+        # 2. 診断詳細とニュース
         st.markdown("---")
-        st.subheader("🏆 AI診断詳細")
-        cols = st.columns(len(results))
-        for i, res in enumerate(results):
-            with cols[i]:
-                st.metric(res['銘柄'], f"{res['将来価値']:,.0f}円", f"{res['将来価値']-future_investment:+,.0f}円")
-                st.write(f"AI情勢評価: {res['評価']:.1f} ★")
+        st.subheader("🏆 AI診断詳細 & 世界のヘッドライン")
+        
+        for res in results:
+            with st.expander(f"📌 {res['銘柄']} ({res['symbol']}) - 予測損益: {res['将来価値']-future_investment:+,.0f}円", expanded=True):
+                col_m, col_n = st.columns([1, 2])
+                
+                with col_m:
+                    st.metric("明日への予測額", f"{res['将来価値']:,.0f}円")
+                    st.write(f"### AI評価: {res['評価']:.1f} ★")
+                    status = "😊 期待大" if res['評価'] > 3.5 else "😐 中立" if res['評価'] >= 2.5 else "⚠️ 警戒"
+                    st.info(f"判定: {status}")
+                
+                with col_n:
+                    st.write("**最新ニュース見出し:**")
+                    if res['news']:
+                        for n in res['news']:
+                            star_icons = "⭐" * n['score']
+                            st.markdown(f"<div class='news-box'>{star_icons}<br>{n['title']}</div>", unsafe_allow_html=True)
+                    else:
+                        st.write("現在、関連する大きなニュースはありません。")
     else:
-        st.error("データが取得できませんでした。")
-
-st.info("💡 グラフの点線と★は、過去のトレンドからAIが導き出した『明日の着地予想』です。")
+        st.error("分析を実行できませんでした。銘柄を正しく選択・入力してください。")
