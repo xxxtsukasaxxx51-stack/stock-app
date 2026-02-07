@@ -36,49 +36,57 @@ if "results" not in st.session_state:
 if "plot_data" not in st.session_state:
     st.session_state.plot_data = {}
 
-# --- 3. CSS (デザイン・広告・免責の最適化) ---
+# --- 3. CSS (ダークモード対応：文字色を固定せず背景に応じて可変にする) ---
 st.markdown(f"""
     <style>
-    .welcome-box {{ background-color: #f0f7ff; padding: 20px; border-radius: 15px; border: 1px solid #3182ce; margin-bottom: 25px; }}
-    .feature-tag {{ background: #3182ce; color: white; padding: 2px 10px; border-radius: 5px; font-size: 0.8em; margin-right: 5px; }}
+    /* 全体的な文字色の固定を解除し、ボックス内のみ制御 */
+    .welcome-box {{ 
+        background-color: rgba(49, 130, 206, 0.1); 
+        padding: 20px; border-radius: 15px; 
+        border: 1px solid #3182ce; margin-bottom: 25px; 
+    }}
     .main-step {{ color: #3182ce; font-weight: bold; font-size: 1.2em; margin-bottom: 15px; border-left: 5px solid #3182ce; padding-left: 10px; }}
     
-    /* Xシェアボタンのデザイン */
+    /* Xボタン：背景黒、文字白で固定（Xのブランド色） */
     .x-share-button {{
-        display: inline-block; background-color: #000000; color: white !important; 
+        display: inline-block; background-color: #000000; color: #ffffff !important; 
         padding: 10px 24px; border-radius: 30px; text-decoration: none; 
         font-weight: bold; font-size: 0.9em; margin-top: 15px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: 0.3s;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }}
-    .x-share-button:hover {{ background-color: #333333; transform: scale(1.02); opacity: 0.9; }}
 
-    /* 広告カードのデザイン */
-    .ad-container {{ display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin: 40px 0; }}
+    /* 広告・免責：ダークモードでも読みやすいよう背景を半透明に */
     .ad-card {{ 
         flex: 1; min-width: 300px; max-width: 500px; padding: 25px; 
         border: 2px solid #e2e8f0; border-radius: 20px; text-align: center; 
-        background: linear-gradient(145deg, #ffffff, #f7fafc);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.2s;
+        background: rgba(255, 255, 255, 0.05); /* ほんのり背景 */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }}
-    .ad-card:hover {{ transform: translateY(-5px); border-color: #3182ce; }}
-    .ad-badge {{ background: #ff4b4b; color: white; padding: 3px 10px; border-radius: 10px; font-size: 0.7em; font-weight: bold; margin-bottom: 10px; display: inline-block; }}
     .ad-card a {{ 
         display: block; background-color: #3182ce; color: white !important; 
         padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 15px;
     }}
     
-    /* ニュース・感情分析バッジ */
-    .sentiment-badge {{ background: #3182ce; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 10px; }}
-    .news-box {{ background: white; padding: 10px; border-radius: 8px; border-left: 5px solid #3182ce; margin-bottom: 8px; font-size: 0.9em; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
-    .advice-box {{ padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); }}
+    /* ニュースボックス：ダークモード時は枠線のみ、または薄い背景 */
+    .news-box {{ 
+        padding: 10px; border-radius: 8px; border-left: 5px solid #3182ce; 
+        margin-bottom: 8px; font-size: 0.9em;
+        background: rgba(128, 128, 128, 0.1); 
+    }}
+    .news-box a {{ text-decoration: none; font-weight: bold; }}
 
-    /* 免責事項 */
-    .disclaimer-box {{ font-size: 0.85em; color: #4a5568; background: #ffffff; padding: 25px; border-radius: 15px; margin-top: 60px; border: 1px solid #cbd5e0; line-height: 1.6; }}
+    .advice-box {{ padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; color: #1a202c; }} /* 判定ボックス内は視認性のため黒文字固定 */
+
+    .disclaimer-box {{ 
+        font-size: 0.85em; padding: 25px; border-radius: 15px; 
+        margin-top: 60px; border: 1px solid #cbd5e0; line-height: 1.6;
+        background: rgba(128, 128, 128, 0.05);
+    }}
 
     /* キャラクター */
     .floating-char-box {{ position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; align-items: center; pointer-events: none; }}
-    .char-img {{ width: 140px; mix-blend-mode: multiply; filter: contrast(125%) brightness(108%); animation: float 3s ease-in-out infinite; }}
-    .auto-quote-bubble {{ background: white; border: 2px solid #3182ce; border-radius: 15px; padding: 10px 15px; margin-bottom: 10px; font-size: 0.85em; font-weight: bold; width: 220px; text-align: center; position: relative; }}
+    .char-img {{ width: 140px; mix-blend-mode: multiply; filter: contrast(110%) brightness(100%); animation: float 3s ease-in-out infinite; }}
+    .auto-quote-bubble {{ background: white; color: #1a202c; border: 2px solid #3182ce; border-radius: 15px; padding: 10px 15px; margin-bottom: 10px; font-size: 0.85em; font-weight: bold; width: 220px; text-align: center; }}
     @keyframes float {{ 0%, 100% {{ transform: translateY(0px); }} 50% {{ transform: translateY(-12px); }} }}
     </style>
     """, unsafe_allow_html=True)
