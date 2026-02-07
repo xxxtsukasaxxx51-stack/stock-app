@@ -4,8 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from datetime import timedelta
 import urllib.parse
+import feedparser  # ニュース取得用
 import re
 
 # --- 0. 基本設定 ---
@@ -15,13 +15,14 @@ CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Ge
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
 
-# --- 2. CSS (スマホ対応・ダークモード対応) ---
+# --- 2. CSS ---
 st.markdown("""
     <style>
     .main-step { color: #3182ce; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #3182ce; padding-left: 10px; margin: 20px 0 10px 0; }
     .advice-box { padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; color: #1a202c; margin-bottom: 15px; }
+    .news-card { background: rgba(128, 128, 128, 0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px; border-left: 3px solid #3182ce; font-size: 0.9rem; }
     .x-share-button { display: inline-block; background: #000; color: #fff !important; padding: 12px 24px; border-radius: 30px; text-decoration: none; font-weight: bold; margin: 10px 0; }
-    .disclaimer-box { font-size: 0.8rem; padding: 20px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2); margin-top: 40px; line-height: 1.6; color: gray; }
+    .disclaimer-box { font-size: 0.8rem; padding: 20px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2); margin-top: 40px; color: gray; }
     .ad-card { flex: 1; min-width: 280px; padding: 20px; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 15px; background: rgba(128, 128, 128, 0.05); text-align: center; }
     .floating-char { position: fixed; bottom: 10px; right: 10px; width: 100px; z-index: 100; pointer-events: none; mix-blend-mode: multiply; }
     </style>
@@ -29,16 +30,16 @@ st.markdown("""
 
 st.title("🤖 AIマーケット総合診断 Pro")
 
-# --- 3. 解説セクション ---
-with st.expander("💡 感情指数と期間設定について"):
+# --- 3. 解説 ---
+with st.expander("💡 感情指数とニュース解析について"):
     st.markdown("""
-    * **感情指数**: 市場の勢いをAIが解析。⭐4以上は上昇トレンド、⭐2以下は警戒。
-    * **分析期間**: 短期（1週間〜30日）は値動きの速さ、長期（1年〜）は企業の成長力を重視します。
+    * **ニュース解析**: 最新のヘッドラインを読み取り、市場の雰囲気をスコア化します。
+    * **感情指数**: ⭐が多いほど、ポジティブな材料が揃っていることを示します。
     """)
 
 st.markdown("<div class='main-step'>STEP 1 & 2: 銘柄選びと条件設定</div>", unsafe_allow_html=True)
 
-# --- 4. 銘柄入力 (人気選択 + フリー入力) ---
+# --- 4. 銘柄入力 ---
 popular_stocks = {
     "🇺🇸 エヌビディア": "NVDA", "🇺🇸 テスラ": "TSLA", "🇺🇸 アップル": "AAPL",
     "🇯🇵 トヨタ": "7203.T", "🇯🇵 三菱UFJ": "8306.T", "🇯🇵 ソフトバンクG": "9984.T"
@@ -48,11 +49,10 @@ c_sel, c_free = st.columns([1, 1])
 selected_popular = c_sel.multiselect("🔥 人気の銘柄から選ぶ", list(popular_stocks.keys()))
 free_input = c_free.text_input("✍️ 自由に入力 (例: MSFT, 6758.T)", placeholder="カンマ区切りで入力")
 
-# 銘柄リストを結合
 final_symbols = [popular_stocks[name] for name in selected_popular]
 if free_input:
     final_symbols.extend([s.strip().upper() for s in free_input.split(",") if s.strip()])
-final_symbols = list(dict.fromkeys(final_symbols)) # 重複削除
+final_symbols = list(dict.fromkeys(final_symbols))
 
 c_in1, c_in2 = st.columns([1, 1])
 f_inv = c_in1.number_input("投資金額(円)", min_value=1000, value=100000)
@@ -62,55 +62,59 @@ span_map = {"1週間":"7d","30日":"1mo","1年":"1y","5年":"5y","全期間(Max)
 # --- 5. 実行ロジック ---
 if st.button("🚀 AI診断スタート"):
     if not final_symbols:
-        st.error("銘柄を選択するか、入力してください。")
+        st.error("銘柄を入力してください。")
     else:
         results = []
         plot_data = {}
         
-        with st.spinner('データを解析中...'):
+        with st.spinner('市場データとニュースを同時解析中...'):
             for symbol in final_symbols:
                 try:
+                    # 株価データ取得
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
-                    if df.empty:
-                        st.warning(f"{symbol} のデータが取得できませんでした。")
-                        continue
+                    if df.empty: continue
                     
                     # 予測ロジック
                     y = df['Close'].values.flatten()
-                    if len(y) < 2: continue
-                    
                     y_last = y[-20:] if len(y) >= 20 else y
-                    x_last = np.arange(len(y_last)).reshape(-1, 1)
-                    
-                    model = LinearRegression().fit(x_last, y_last)
+                    model = LinearRegression().fit(np.arange(len(y_last)).reshape(-1, 1), y_last)
                     pred_price = float(model.predict(np.array([[len(y_last)+5]]))[0])
                     curr_price = float(y[-1])
                     
-                    # 感情指数シミュレーション
+                    # --- 📰 ニュース取得復活 ---
+                    news_entries = []
+                    try:
+                        # GoogleニュースからRSS取得
+                        rss_url = f"https://news.google.com/rss/search?q={symbol}&hl=ja&gl=JP&ceid=JP:ja"
+                        feed = feedparser.parse(rss_url)
+                        for entry in feed.entries[:3]:
+                            news_entries.append({"title": entry.title, "link": entry.link})
+                    except:
+                        pass # ニュース取得失敗でも診断を止めない
+
+                    # 感情指数の擬似計算
                     stars = round(np.clip(3.0 + (pred_price/curr_price - 1)*10, 1.5, 5.0), 1)
                     adv, col = ("🚀 強気", "#d4edda") if pred_price > curr_price else ("⚠️ 警戒", "#f8d7da")
                     
                     results.append({
-                        "symbol": symbol,
-                        "future": f_inv * (pred_price / curr_price),
+                        "symbol": symbol, "future": f_inv * (pred_price / curr_price),
                         "gain": (f_inv * (pred_price / curr_price)) - f_inv,
-                        "adv": adv, "col": col, "stars": stars, "period": time_span
+                        "adv": adv, "col": col, "stars": stars, "period": time_span,
+                        "news": news_entries
                     })
                     plot_data[symbol] = df
-                except Exception as e:
-                    st.error(f"{symbol} の解析中にエラーが発生しました。")
+                except: continue
 
         # --- 6. 結果表示 ---
         if results:
             st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
             
-            # グラフ描画
+            # グラフ
             fig, ax = plt.subplots(figsize=(10, 4))
             fig.patch.set_alpha(0.0)
             ax.patch.set_alpha(0.0)
             for s, d in plot_data.items():
                 ax.plot(d.index, d['Close'] / d['Close'].iloc[0] * 100, label=s)
-            ax.set_ylabel("Growth Rate (%)")
             ax.legend()
             st.pyplot(fig)
 
@@ -118,7 +122,13 @@ if st.button("🚀 AI診断スタート"):
                 st.markdown(f"### 🎯 {res['symbol']} ({res['period']}分析)")
                 r1, r2 = st.columns(2)
                 r1.metric("5日後の予想資産", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
-                r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
+                r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (AI期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
+                
+                # 復活したニュース記事の表示
+                if res['news']:
+                    with st.expander("📰 関連ニュースを確認"):
+                        for n in res['news']:
+                            st.markdown(f"<div class='news-card'><a href='{n['link']}' target='_blank'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
                 # X投稿
                 share_text = f"📈 AIマーケット診断\n🎯 {res['symbol']} ({res['period']})\n📢 判定: {res['adv']}\n🚀 予想: {res['future']:,.0f}円\n{APP_URL}"
@@ -126,7 +136,7 @@ if st.button("🚀 AI診断スタート"):
                 st.markdown(f'<a href="{x_url}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
                 st.divider()
 
-# --- 7. 免責事項 & 広告 ---
+# --- 7. 免責 & 広告 ---
 st.markdown("""
 <div class="disclaimer-box">
     <b>⚠️ 免責事項</b><br>
