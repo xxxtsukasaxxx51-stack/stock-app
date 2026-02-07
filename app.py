@@ -182,106 +182,74 @@ if execute:
                 elif avg_stars >= 3.5 and not trend_up: advice, color = "❓【チグハグ】いい材料が無視されています。", "#e1f5fe"
                 else: advice, color = "😐【様子見】大きな動きを待っています。", "#f5f5f5"
 
-                results.append({"銘銘": name, "将来価値": future_investment * (pred_p / current_price), "評価": avg_stars, "pred": pred_p, "news": news_details, "symbol": symbol, "advice": advice, "color": color, "current": current_price})
+                results.append({"銘柄": name, "将来価値": future_investment * (pred_p / current_price), "評価": avg_stars, "pred": pred_p, "news": news_details, "symbol": symbol, "advice": advice, "color": color, "current": current_price})
             except: continue
 
     if results:
-        # グラフ表示
+        # 1. グラフ表示
         st.subheader("📈 トレンド予測グラフ")
         fig, ax = plt.subplots(figsize=(10, 6))
         for name, data in plot_data.items():
             base_p = data['Close'].iloc[0]
             norm_p = data['Close'] / base_p * 100
             line = ax.plot(data.index, norm_p, label=name, linewidth=2.5)
-            res_item = next(r for r in results if r['銘銘'] == name)
+            res_item = next(r for r in results if r['銘柄'] == name)
             norm_pred = (res_item['pred'] / base_p) * 100
             future_date = data.index[-1] + timedelta(days=1)
             ax.plot([data.index[-1], future_date], [norm_p.iloc[-1], norm_pred], color=line[0].get_color(), linestyle='--', alpha=0.5)
             ax.scatter(future_date, norm_pred, color=line[0].get_color(), marker='*', s=300, edgecolors='black', zorder=10)
         
-        # 凡例をスマホでも見やすく（上部に配置）
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=10)
         plt.tight_layout()
         st.pyplot(fig)
 
-        # 診断詳細
+        # 2. 診断詳細
         st.markdown("---")
         st.subheader("🏆 AI診断詳細")
         for res in results:
-            with st.expander(f"📌 {res['銘銘']} の結果を見る", expanded=True):
+            with st.expander(f"📌 {res['銘柄']} の結果を見る", expanded=True):
                 st.metric("明日への予測額", f"{res['将来価値']:,.0f}円", f"{res['将来価値']-future_investment:+,.0f}円")
                 st.markdown(f"<div class='advice-box' style='background-color: {res['color']};'>{res['advice']}</div>", unsafe_allow_html=True)
                 st.write("**最新ニュース:**")
                 for n in res['news']:
                     st.markdown(f"<div class='news-box'>{'⭐' * n['score']}<br><a href='{n['link']}' target='_blank'><b>🔗 {n['title_jp']}</b></a><br><small>{n['title_en']}</small></div>", unsafe_allow_html=True)
-    else:
-        st.info("銘柄を選んでボタンを押してください。")
 
-        # --- 7. 免責事項（アプリの最下部に配置） ---
-st.markdown("---")
-
-# スタイリッシュな免責事項エリア
-st.markdown("""
-    <style>
-    .disclaimer {
-        font-size: 0.8em;
-        color: #666;
-        background-color: #f1f3f5;
-        padding: 20px;
-        border-radius: 10px;
-        line-height: 1.6;
-        margin-top: 30px;
-    }
-    </style>
-    <div class="disclaimer">
-        <b>【免責事項】</b><br>
-        ● 本アプリが提供するデータ、AIによる分析結果、株価予測は情報の提供のみを目的としており、投資の勧誘や助言を目的としたものではありません。<br>
-        ● 予測結果は過去のデータに基づく計算値であり、将来の運用成果を保証するものではありません。実際の市場動向は経済情勢や予期せぬイベントにより大きく異なる場合があります。<br>
-        ● 本アプリに掲載されているリンク先（証券会社等）を通じて行われるサービスの利用については、利用者ご自身の判断と責任において行ってください。<br>
-        ● 本アプリを利用したことにより生じたいかなる損害・不利益についても、開発者は一切の責任を負いません。<br>
-        ● 投資に関する最終決定は、ご自身の判断と責任で行っていただくようお願いいたします。
-    </div>
-    <br>
-    <p style='text-align: center; color: #999; font-size: 0.7em;'>© 2024 AI Market Diagnosis Pro - All Rights Reserved.</p>
-    """, unsafe_allow_html=True)
-
-    # 1. 診断結果の表示（グラフやAIコメント）
-st.write("AIによる診断結果は...") 
-
-# 2. 免責事項
-st.caption("免責事項：本アプリの情報は投資勧誘を目的としたものではありません。投資の最終決定はご自身の判断で...")
-
-# --- 免責事項の表示（既にあるコードの下に） ---
-        st.caption("免責事項：本アプリの情報は投資勧誘を目的としたものではありません。投資の最終決定はご自身の判断で行ってください。")
-
-        # --- ここから追加：確実に動くシェアボタン ---
-        import urllib.parse
+        # --- 3. シェアボタン（診断した時だけ表示） ---
+        st.markdown("---")
+        st.subheader("📢 診断結果をシェアする")
         
-        # 変数名が symbol でない場合は、'symbol' を実際の入力変数名に変えてください
-        target_name = locals().get('symbol', '注目銘柄')
-        share_text = f"AIが「{target_name}」の最新ニュースと価格トレンドを診断しました！🤖📈 #米国株 #AI投資診断 #アイモン"
-        app_url = "https://your-app-url.streamlit.app/" # ★ご自身のURL
+        # 最初に選んだ銘柄名をシェアテキストに入れる
+        share_stock = selected_names[0] if selected_names else "注目銘柄"
+        share_text = f"AIが「{share_stock}」の最新ニュースとトレンドを診断しました！🤖📈\n#米国株 #AI投資診断 #アイモン"
+        app_url = "https://your-app-url.streamlit.app/" # ★ご自身のURLに書き換え
 
         s_text_quoted = urllib.parse.quote(share_text)
         s_url_quoted = urllib.parse.quote(app_url)
         share_url = f"https://twitter.com/intent/tweet?text={s_text_quoted}&url={s_url_quoted}"
 
-        # HTMLを使って確実に別タブで開くボタンを作成
         st.components.v1.html(f"""
-            <a href="{share_url}" target="_blank">
+            <a href="{share_url}" target="_blank" style="text-decoration: none;">
                 <button style="
-                    width: 100%;
-                    padding: 12px;
-                    background-color: #000000;
-                    color: white;
-                    border: none;
-                    border-radius: 25px;
-                    font-size: 16px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    font-family: sans-serif;
+                    width: 100%; padding: 15px; background-color: #000000; color: white;
+                    border: none; border-radius: 30px; font-size: 18px; font-weight: bold;
+                    cursor: pointer; font-family: sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
                 ">
-                    𝕏 (Twitter) で診断結果をシェア
+                    𝕏 (Twitter) でシェアして応援する
                 </button>
             </a>
-        """, height=60)
+        """, height=80)
+
+    else:
+        st.info("銘柄を選んでボタンを押してください。")
+
+# --- 7. 免責事項（常に最下部に表示） ---
+st.markdown("---")
+st.markdown("""
+    <div style="font-size: 0.8em; color: #666; background-color: #f1f3f5; padding: 20px; border-radius: 10px; line-height: 1.6;">
+        <b>【免責事項】</b><br>
+        ● 本アプリの分析結果は情報の提供のみを目的としており、投資の勧誘を目的としたものではありません。投資の最終決定はご自身の判断で行ってください。<br>
+        ● 本アプリを利用したことにより生じたいかなる損害についても、開発者は一切の責任を負いません。
+    </div>
+    <br>
+    <p style='text-align: center; color: #999; font-size: 0.7em;'>© 2026 AI Market Diagnosis Pro - All Rights Reserved.</p>
+""", unsafe_allow_html=True)
