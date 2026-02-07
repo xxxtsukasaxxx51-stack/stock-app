@@ -99,6 +99,24 @@ with set2:
 # 診断実行ボタン（CSSで大きく表示）
 execute = st.button("🚀 総合診断を実行")
 
+# --- 広告エリア (DMM株) ---
+st.markdown("---")
+# A8.netの素材から抽出したリンクと画像
+affiliate_link = "https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY"
+banner_url = "https://www27.a8.net/svt/bgt?aid=260207137351&wid=001&eno=01&mid=s00000008903007010000&mc=1" # DMM株の一般的なバナーサイズを想定
+
+st.markdown(f"""
+    <div style="text-align: center; padding: 10px; background-color: #fcfcfc; border: 1px solid #eee; border-radius: 10px;">
+        <p style="font-size: 0.8em; color: #666; margin-bottom: 8px;">＼ 株の取引を始めるなら ／</p>
+        <a href="{affiliate_link}" target="_blank" rel="nofollow">
+            <img src="https://www27.a8.net/svt/bgt?aid=260207137351&wid=001&eno=01&mid=s00000008903007010000&mc=1" 
+                 style="width: 100%; max-width: 468px; border-radius: 5px;">
+        </a>
+        <p style="font-size: 0.7em; color: #999; margin-top: 5px;">[広告：PR] 株初心者から上級者まで、幅広く選ばれているDMM 株</p>
+    </div>
+""", unsafe_allow_html=True)
+st.markdown("---")
+
 # --- 6. 実行ロジック（グラフと結果） ---
 if execute:
     results = []
