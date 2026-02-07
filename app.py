@@ -11,45 +11,49 @@ import random
 import japanize_matplotlib
 
 # --- 0. 基本設定 ---
-# 実際のアプリURLに書き換えてください
 APP_URL = "https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/" 
 
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
 
-# --- 2. CSS ---
+# --- 2. CSS (インスタ用デザイン追加) ---
 st.markdown("""
     <style>
     .main-step { color: #3182ce; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #3182ce; padding-left: 10px; margin: 20px 0 10px 0; }
     .advice-box { padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; color: #1a202c; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.1); }
     .news-card { background: rgba(128, 128, 128, 0.08); padding: 12px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid #3182ce; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
     .news-stars { color: #f6ad55; font-weight: bold; margin-right: 10px; }
-    .x-share-button { display: inline-block; background: #000; color: #fff !important; padding: 12px 24px; border-radius: 30px; text-decoration: none; font-weight: bold; margin: 15px 0; }
+    .x-share-button { display: inline-block; background: #000; color: #fff !important; padding: 12px 24px; border-radius: 30px; text-decoration: none; font-weight: bold; margin: 15px 0; text-align: center; }
     .ad-section { background: linear-gradient(135deg, #f6f9fc 0%, #eef2f7 100%); padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e0; text-align: center; margin: 15px 0; }
     .ad-link { color: #2b6cb0; font-weight: bold; text-decoration: none; }
     .disclaimer-box { font-size: 0.75rem; padding: 20px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2); margin-top: 40px; color: gray; }
+    
+    /* インスタ映えカード用スタイル */
+    .insta-card {
+        background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+        padding: 30px; border-radius: 20px; color: white !important; 
+        text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        margin: 10px 0; font-family: 'sans-serif';
+    }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🤖 AIマーケット総合診断 Pro")
 
-# --- 💡 アプリ解説セクション ---
+# --- 💡 アプリ解説 ---
 with st.expander("💡 感情指数と分析期間のヒント"):
     st.markdown("""
     ### 📊 感情指数（AI期待値）とは？
-    最新のニュース記事をAIがスキャンし、市場の「強気・弱気」を⭐1〜5で判定。
-    株価の数字だけでなく、世の中の「雰囲気」を投資判断に取り入れます。
-
+    最新のニュースとトレンドをAIがスキャンし、⭐1〜5で判定。
     ### ⏳ 分析期間の選び方
-    * **短期（1週間〜30日）**: 目先のトレンド予測。今の波に乗りたい時。
-    * **長期（1年〜全期間）**: 企業の成長の歴史を分析。将来の資産形成を考えたい時。
+    * **短期**: 今の波に乗りたい時。 **長期**: 将来の資産形成を考えたい時。
     """)
 
 # --- 🎯 銘柄マスター ---
 stock_master = {
     "🇺🇸 米国成長株": {"エヌビディア": "NVDA", "テスラ": "TSLA", "アップル": "AAPL", "マイクロソフト": "MSFT"},
     "🇯🇵 日本主力株": {"トヨタ自動車": "7203.T", "三菱UFJ": "8306.T", "任天堂": "7974.T", "ソニーグループ": "6758.T"},
-    "📈 指数・ETF": {"S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ", "日経平均 (1321.T)": "1321.T"}
+    "📈 指数・ETF": {"S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ"}
 }
 code_to_name = {c: n for cat in stock_master.values() for n, c in cat.items()}
 flat_options = {f"[{cat}] {n} ({c})": c for cat, s in stock_master.items() for n, c in s.items()}
@@ -75,17 +79,14 @@ if st.button("🚀 AI診断スタート"):
         st.error("銘柄を入力してください。")
     else:
         results, plot_data = [], {}
-        with st.spinner('AI解析＆予測グラフ生成中...'):
+        with st.spinner('AI解析中...'):
             for symbol in final_symbols:
                 try:
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
                     if df.empty: continue
-                    
                     y = df['Close'].values.flatten()
                     y_last = y[-20:] if len(y) >= 20 else y
-                    X = np.arange(len(y_last)).reshape(-1, 1)
-                    model = LinearRegression().fit(X, y_last)
-                    
+                    model = LinearRegression().fit(np.arange(len(y_last)).reshape(-1, 1), y_last)
                     pred_price = float(model.predict(np.array([[len(y_last) + 5]]))[0])
                     curr_price = float(y[-1])
                     pred_ratio = pred_price / curr_price
@@ -116,20 +117,16 @@ if st.button("🚀 AI診断スタート"):
             fig, ax = plt.subplots(figsize=(10, 5))
             fig.patch.set_alpha(0.0)
             ax.patch.set_alpha(0.0)
-            
             for s, info in plot_data.items():
                 d = info["df"]
                 base = d['Close'].iloc[0]
                 line = (d['Close'] / base) * 100
                 p = ax.plot(d.index, line, label=f"{s} (⭐{info['stars']})", linewidth=2)
-                
                 last_date = d.index[-1]
                 future_date = last_date + timedelta(days=5)
                 future_val = line.iloc[-1] * info["pred_ratio"]
-                
                 ax.plot([last_date, future_date], [line.iloc[-1], future_val], color=p[0].get_color(), linestyle='--', alpha=0.6)
                 ax.scatter(future_date, future_val, marker='*', s=250, color=p[0].get_color(), edgecolors='black', zorder=5)
-
             ax.set_ylabel("成長率 (%)")
             ax.grid(True, linestyle='--', alpha=0.4)
             ax.legend(loc='upper left', fontsize='small')
@@ -144,29 +141,34 @@ if st.button("🚀 AI診断スタート"):
                 r1.metric(f"5日後の予想資産 ({res['period']})", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
                 r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (AI期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
                 
+                # ニュース表示
                 if res['news']:
                     for n in res['news']:
                         st.markdown(f"<div class='news-card'><span class='news-stars'>⭐{n['star']}</span><a href='{n['link']}' target='_blank' style='text-decoration:none;color:inherit;'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
-                # --- X投稿メッセージの構築 ---
-                share_text = (
-                    f"📈 【AIマーケット診断 Pro】\n"
-                    f"━━━━━━━━━━━━━━\n"
-                    f"🎯 企業：{res['name']} ({res['symbol']})\n"
-                    f"🔍 期間：{res['period']}分析\n"
-                    f"💰 投資：{res['invest']:,.0f}円\n"
-                    f"✨ 期待値：⭐{res['stars']}\n"
-                    f"📢 判定：{res['adv']}\n"
-                    f"🚀 5日後の予想：{res['future']:,.0f}円\n"
-                    f"━━━━━━━━━━━━━━\n"
-                    f"AIが最新ニュースとトレンドを解析！\n"
-                    f"https://stock-app-azmusn5x6drgnr4pacvp8s.streamlit.app/"
-                )
+                # --- SNSシェアエリア ---
+                c1, c2 = st.columns(2)
+                
+                # X (Twitter)
+                share_text = (f"📈 【AIマーケット診断 Pro】\n━━━━━━━━━━━━━━\n🎯 企業：{res['name']} ({res['symbol']})\n🔍 期間：{res['period']}分析\n✨ 期待値：⭐{res['stars']}\n📢 判定：{res['adv']}\n🚀 5日後の予想：{res['future']:,.0f}円\n━━━━━━━━━━━━━━\n{APP_URL}")
+                c1.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 にポストする</a>', unsafe_allow_html=True)
+                
+                # Instagram (スクショ用カード)
+                with c2.expander("📸 Instagram用カードを表示"):
+                    st.markdown(f"""
+                        <div class="insta-card">
+                            <p style="font-size:0.8rem; margin:0;">AI MARKET ANALYSIS</p>
+                            <h2 style="color:white; margin:10px 0;">{res['name']}</h2>
+                            <div style="font-size:1.8rem; font-weight:bold; margin:10px 0;">期待値 ⭐{res['stars']}</div>
+                            <div style="background:rgba(255,255,255,0.2); padding:10px; border-radius:10px; font-size:1.2rem;">{res['adv']}</div>
+                            <p style="font-size:0.7rem; margin-top:15px;">#AI投資 #新NISA #資産運用</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    st.caption("👆これをスクショしてストーリーズへ！")
+                    st.code(f"#AI投資 #新NISA #資産運用 #{res['name']} #投資初心者", language="text")
 
-                # ボタンの表示 (インデントを修正)
-                st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果を詳細にポストする</a>', unsafe_allow_html=True)
                 st.divider()
 
-st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づくシミュレーションであり、将来の成果を保証しません。判断は自己責任で。</div>', unsafe_allow_html=True)
+st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づく予測であり将来を保証しません。判断は自己責任で。</div>', unsafe_allow_html=True)
 
 
