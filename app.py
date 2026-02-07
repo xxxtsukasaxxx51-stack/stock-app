@@ -7,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 import urllib.parse
 import feedparser
 import random
-import japanize_matplotlib # 日本語表示用
+import japanize_matplotlib
 
 # --- 0. 基本設定 ---
 APP_URL = "https://your-app-name.streamlit.app/" 
@@ -15,7 +15,7 @@ APP_URL = "https://your-app-name.streamlit.app/"
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
 
-# --- 2. CSS ---
+# --- 2. CSS (広告カードのデザインを追加) ---
 st.markdown("""
     <style>
     .main-step { color: #3182ce; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #3182ce; padding-left: 10px; margin: 20px 0 10px 0; }
@@ -31,6 +31,14 @@ st.markdown("""
         padding: 12px 24px; border-radius: 30px; text-decoration: none; 
         font-weight: bold; margin: 15px 0;
     }
+    /* 広告用スタイル */
+    .ad-section {
+        background: linear-gradient(135deg, #f6f9fc 0%, #eef2f7 100%);
+        padding: 20px; border-radius: 15px; border: 1px dashed #cbd5e0;
+        text-align: center; margin: 20px 0;
+    }
+    .ad-badge { background: #718096; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; vertical-align: middle; margin-right: 5px; }
+    .ad-link { color: #2b6cb0; font-weight: bold; text-decoration: none; font-size: 1.1rem; }
     .disclaimer-box { font-size: 0.75rem; padding: 20px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2); margin-top: 40px; color: gray; }
     </style>
     """, unsafe_allow_html=True)
@@ -41,19 +49,16 @@ st.title("🤖 AIマーケット総合診断 Pro")
 with st.expander("💡 感情指数と分析期間のヒント"):
     st.markdown("""
     ### 📊 感情指数（AI期待値）とは？
-    最新のニュース記事をAIがスキャンし、市場の「強気・弱気」を⭐1〜5で判定したものです。
-    株価の数字だけでなく、世の中の「雰囲気」を投資判断に取り入れることができます。
-
+    最新のニュース記事をAIがスキャンし、市場の「強気・弱気」を⭐1〜5で判定。
     ### ⏳ 分析期間の選び方
-    * **短期（1週間〜30日）**: 目先のトレンド予測。
-    * **長期（1年〜全期間）**: 企業の成長の本質を分析。
+    * **短期**: 現在のトレンド。 **長期**: 企業の成長の本質。
     """)
 
 # --- 🎯 銘柄マスター ---
 stock_master = {
-    "🇺🇸 米国成長株": {"エヌビディア": "NVDA", "テスラ": "TSLA", "アップル": "AAPL", "マイクロソフト": "MSFT", "アマゾン": "AMZN"},
-    "🇯🇵 日本主力株": {"トヨタ自動車": "7203.T", "三菱UFJ": "8306.T", "ソフトバンクG": "9984.T", "任天堂": "7974.T", "ソニーグループ": "6758.T"},
-    "📈 指数・ETF": {"S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ", "日経平均 (1321.T)": "1321.T"}
+    "🇺🇸 米国成長株": {"エヌビディア": "NVDA", "テスラ": "TSLA", "アップル": "AAPL", "マイクロソフト": "MSFT"},
+    "🇯🇵 日本主力株": {"トヨタ自動車": "7203.T", "三菱UFJ": "8306.T", "任天堂": "7974.T", "ソニーグループ": "6758.T"},
+    "📈 指数・ETF": {"S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ"}
 }
 
 code_to_name = {}
@@ -66,7 +71,7 @@ for cat, stocks in stock_master.items():
 st.markdown("<div class='main-step'>STEP 1 & 2: 銘柄選びと条件設定</div>", unsafe_allow_html=True)
 c_sel, c_free = st.columns([1, 1])
 selected_keys = c_sel.multiselect("🔥 人気銘柄から選択", list(flat_options.keys()))
-free_input = c_free.text_input("✍️ 自由入力 (例: NFLX, 6501.T)", placeholder="カンマ区切りで入力")
+free_input = c_free.text_input("✍️ 自由入力 (例: NFLX, 6501.T)", placeholder="カンマ区切り")
 
 final_symbols = [flat_options[key] for key in selected_keys]
 if free_input:
@@ -86,20 +91,17 @@ if st.button("🚀 AI診断スタート"):
         results = []
         plot_data = {}
         
-        with st.spinner('市場データとグラフを生成中...'):
+        with st.spinner('市場データを解析中...'):
             for symbol in final_symbols:
                 try:
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
                     if df.empty: continue
-                    
-                    # 予測
                     y = df['Close'].values.flatten()
                     y_last = y[-20:] if len(y) >= 20 else y
                     model = LinearRegression().fit(np.arange(len(y_last)).reshape(-1, 1), y_last)
                     pred_price = float(model.predict(np.array([[len(y_last)+5]]))[0])
                     curr_price = float(y[-1])
                     
-                    # ニュース取得
                     news_list = []
                     try:
                         feed = feedparser.parse(f"https://news.google.com/rss/search?q={symbol}&hl=ja&gl=JP")
@@ -124,10 +126,9 @@ if st.button("🚀 AI診断スタート"):
         if results:
             st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
             
-            # --- 📈 グラフ復活 ---
+            # --- 📈 グラフ表示 ---
             fig, ax = plt.subplots(figsize=(10, 4))
             fig.patch.set_alpha(0.0)
-            ax.patch.set_alpha(0.0)
             for s, d in plot_data.items():
                 label_name = f"{code_to_name.get(s, s)} ({s})"
                 ax.plot(d.index, d['Close'] / d['Close'].iloc[0] * 100, label=label_name)
@@ -135,30 +136,40 @@ if st.button("🚀 AI診断スタート"):
             ax.legend(loc='upper left', fontsize='small')
             st.pyplot(fig)
 
+            # --- 💰 中間広告枠 (1つ目) ---
+            st.markdown("""
+                <div class="ad-section">
+                    <span class="ad-badge">PR</span>
+                    <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank" class="ad-link">
+                        【DMM 株】最短即日で口座開設！取引手数料も業界最安水準
+                    </a>
+                    <p style="font-size: 0.8rem; margin-top: 5px; color: #4a5568;">スマホで完結。初心者でも使いやすいツールが充実。</p>
+                </div>
+            """, unsafe_allow_html=True)
+
             for res in results:
                 st.markdown(f"### 🎯 {res['name']} ({res['symbol']})")
                 r1, r2 = st.columns(2)
                 r1.metric(f"5日後の予想資産 ({res['period']})", f"{res['future']:,.0f}円", f"{res['gain']:+,.0f}円")
                 r2.markdown(f"<div class='advice-box' style='background-color:{res['col']};'>{res['adv']} (AI期待値: ⭐{res['stars']})</div>", unsafe_allow_html=True)
                 
-                # ニュース表示
                 for n in res['news']:
                     st.markdown(f"<div class='news-card'><span class='news-stars'>⭐{n['star']}</span><a href='{n['link']}' target='_blank' style='text-decoration:none;color:inherit;'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
-                # X投稿の整形
-                share_text = (
-                    f"📈 【AIマーケット診断 Pro】\n"
-                    f"━━━━━━━━━━━━━━\n"
-                    f"🎯 企業：{res['name']} ({res['symbol']})\n"
-                    f"🔍 期間：{res['period']}分析\n"
-                    f"💰 投資：{res['invest']:,.0f}円\n"
-                    f"📢 判定：{res['adv']}\n"
-                    f"🚀 予想：{res['future']:,.0f}円\n"
-                    f"━━━━━━━━━━━━━━\n"
-                    f"{APP_URL}"
-                )
+                share_text = (f"📈 【AIマーケット診断 Pro】\n━━━━━━━━━━━━━━\n🎯 企業：{res['name']} ({res['symbol']})\n🔍 期間：{res['period']}分析\n💰 投資：{res['invest']:,.0f}円\n📢 判定：{res['adv']}\n🚀 予想：{res['future']:,.0f}円\n━━━━━━━━━━━━━━\n{APP_URL}")
                 st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
                 st.divider()
+
+# --- 💰 下部広告枠 (2つ目) ---
+st.markdown("""
+    <div class="ad-section">
+        <span class="ad-badge">PR</span>
+        <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank" class="ad-link">
+            投資の達人になるなら【TOSSY】無料オンライン講座実施中！
+        </a>
+        <p style="font-size: 0.8rem; margin-top: 5px; color: #4a5568;">資産運用の基本から応用まで、プロのノウハウを動画で学ぶ。</p>
+    </div>
+""", unsafe_allow_html=True)
 
 st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づく予測であり、将来の成果を保証しません。</div>', unsafe_allow_html=True)
 
