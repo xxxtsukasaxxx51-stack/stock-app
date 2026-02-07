@@ -16,7 +16,7 @@ import random
 
 # --- 0. 基本設定とキャラクター画像URL ---
 # ※ここにGitHubのrawリンクを貼り付けてください
-CHARACTER_URL = "https://raw.githubusercontent.com/あなたのユーザー名/stock-app/main/character.png"
+CHARACTER_URL = "https://github.com/xxxtsukasaxxx51-stack/stock-app/blob/main/Gemini_Generated_Image_j2mypyj2mypyj2my.png?raw=true"
 
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
