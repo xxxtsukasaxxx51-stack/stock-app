@@ -15,28 +15,15 @@ APP_URL = "https://your-app-name.streamlit.app/"
 # --- 1. ページ設定 ---
 st.set_page_config(page_title="AIマーケット診断 Pro", layout="wide", page_icon="📈")
 
-# --- 2. CSS (広告カードのデザインを追加) ---
+# --- 2. CSS (装飾) ---
 st.markdown("""
     <style>
     .main-step { color: #3182ce; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #3182ce; padding-left: 10px; margin: 20px 0 10px 0; }
     .advice-box { padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; color: #1a202c; margin-bottom: 15px; border: 1px solid rgba(0,0,0,0.1); }
-    .news-card { 
-        background: rgba(128, 128, 128, 0.08); padding: 12px; border-radius: 10px; 
-        margin-bottom: 8px; border-left: 5px solid #3182ce; font-size: 0.85rem; 
-        display: flex; justify-content: space-between; align-items: center;
-    }
+    .news-card { background: rgba(128, 128, 128, 0.08); padding: 12px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid #3182ce; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
     .news-stars { color: #f6ad55; font-weight: bold; margin-right: 10px; }
-    .x-share-button { 
-        display: inline-block; background: #000; color: #fff !important; 
-        padding: 12px 24px; border-radius: 30px; text-decoration: none; 
-        font-weight: bold; margin: 15px 0;
-    }
-    /* 広告用スタイル */
-    .ad-section {
-        background: linear-gradient(135deg, #f6f9fc 0%, #eef2f7 100%);
-        padding: 20px; border-radius: 15px; border: 1px dashed #cbd5e0;
-        text-align: center; margin: 20px 0;
-    }
+    .x-share-button { display: inline-block; background: #000; color: #fff !important; padding: 12px 24px; border-radius: 30px; text-decoration: none; font-weight: bold; margin: 15px 0; }
+    .ad-section { background: linear-gradient(135deg, #f6f9fc 0%, #eef2f7 100%); padding: 20px; border-radius: 15px; border: 1px dashed #cbd5e0; text-align: center; margin: 20px 0; }
     .ad-badge { background: #718096; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; vertical-align: middle; margin-right: 5px; }
     .ad-link { color: #2b6cb0; font-weight: bold; text-decoration: none; font-size: 1.1rem; }
     .disclaimer-box { font-size: 0.75rem; padding: 20px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2); margin-top: 40px; color: gray; }
@@ -49,9 +36,9 @@ st.title("🤖 AIマーケット総合診断 Pro")
 with st.expander("💡 感情指数と分析期間のヒント"):
     st.markdown("""
     ### 📊 感情指数（AI期待値）とは？
-    最新のニュース記事をAIがスキャンし、市場の「強気・弱気」を⭐1〜5で判定。
+    最新のニュースと直近の値動きをAIが統合し、⭐1〜5で期待値を算出しています。
     ### ⏳ 分析期間の選び方
-    * **短期**: 現在のトレンド。 **長期**: 企業の成長の本質。
+    * **短期**: 現在のモメンタム。 **長期**: 企業の構造的な成長力。
     """)
 
 # --- 🎯 銘柄マスター ---
@@ -60,20 +47,15 @@ stock_master = {
     "🇯🇵 日本主力株": {"トヨタ自動車": "7203.T", "三菱UFJ": "8306.T", "任天堂": "7974.T", "ソニーグループ": "6758.T"},
     "📈 指数・ETF": {"S&P 500 (VOO)": "VOO", "ナスダック100 (QQQ)": "QQQ"}
 }
-
-code_to_name = {}
-flat_options = {}
-for cat, stocks in stock_master.items():
-    for name, code in stocks.items():
-        code_to_name[code] = name
-        flat_options[f"[{cat}] {name} ({code})"] = code
+code_to_name = {c: n for cat in stock_master.values() for n, c in cat.items()}
+flat_options = {f"[{cat}] {n} ({c})": c for cat, s in stock_master.items() for n, c in s.items()}
 
 st.markdown("<div class='main-step'>STEP 1 & 2: 銘柄選びと条件設定</div>", unsafe_allow_html=True)
 c_sel, c_free = st.columns([1, 1])
 selected_keys = c_sel.multiselect("🔥 人気銘柄から選択", list(flat_options.keys()))
-free_input = c_free.text_input("✍️ 自由入力 (例: NFLX, 6501.T)", placeholder="カンマ区切り")
+free_input = c_free.text_input("✍️ 自由入力 (AAPL, 7203.T等)", placeholder="カンマ区切り")
 
-final_symbols = [flat_options[key] for key in selected_keys]
+final_symbols = [flat_options[k] for k in selected_keys]
 if free_input:
     final_symbols.extend([s.strip().upper() for s in free_input.split(",") if s.strip()])
 final_symbols = list(dict.fromkeys(final_symbols))
@@ -91,7 +73,7 @@ if st.button("🚀 AI診断スタート"):
         results = []
         plot_data = {}
         
-        with st.spinner('市場データを解析中...'):
+        with st.spinner('AIが予測とニュースを統合中...'):
             for symbol in final_symbols:
                 try:
                     df = yf.download(symbol, period=span_map[time_span], progress=False)
@@ -102,6 +84,8 @@ if st.button("🚀 AI診断スタート"):
                     pred_price = float(model.predict(np.array([[len(y_last)+5]]))[0])
                     curr_price = float(y[-1])
                     
+                    stars = round(np.clip(3.0 + (pred_price/curr_price - 1)*10, 1.5, 5.0), 1)
+                    
                     news_list = []
                     try:
                         feed = feedparser.parse(f"https://news.google.com/rss/search?q={symbol}&hl=ja&gl=JP")
@@ -110,42 +94,34 @@ if st.button("🚀 AI診断スタート"):
                             news_list.append({"title": e.title, "link": e.link, "star": n_star})
                     except: pass
 
-                    stars = round(np.clip(3.0 + (pred_price/curr_price - 1)*10, 1.5, 5.0), 1)
-                    adv, col = ("🚀 強気", "#d4edda") if pred_price > curr_price else ("⚠️ 警戒", "#f8d7da")
-                    
                     results.append({
                         "name": code_to_name.get(symbol, symbol), "symbol": symbol, 
-                        "future": f_inv * (pred_price / curr_price),
-                        "gain": (f_inv * (pred_price / curr_price)) - f_inv,
-                        "adv": adv, "col": col, "stars": stars, "period": time_span,
-                        "invest": f_inv, "news": news_list
+                        "future": f_inv * (pred_price / curr_price), "gain": (f_inv * (pred_price / curr_price)) - f_inv,
+                        "adv": ("🚀 強気" if pred_price > curr_price else "⚠️ 警戒"), 
+                        "col": ("#d4edda" if pred_price > curr_price else "#f8d7da"), 
+                        "stars": stars, "period": time_span, "invest": f_inv, "news": news_list
                     })
-                    plot_data[symbol] = df
+                    plot_data[symbol] = {"df": df, "stars": stars}
                 except: continue
 
         if results:
             st.markdown("<div class='main-step'>STEP 3: 診断結果</div>", unsafe_allow_html=True)
             
-            # --- 📈 グラフ表示 ---
+            # --- 📈 グラフ（期待値⭐復活版） ---
             fig, ax = plt.subplots(figsize=(10, 4))
             fig.patch.set_alpha(0.0)
-            for s, d in plot_data.items():
-                label_name = f"{code_to_name.get(s, s)} ({s})"
-                ax.plot(d.index, d['Close'] / d['Close'].iloc[0] * 100, label=label_name)
+            for s, info in plot_data.items():
+                d = info["df"]
+                s_star = info["stars"]
+                label_name = f"{code_to_name.get(s, s)} ({s}) ⭐{s_star}"
+                ax.plot(d.index, d['Close'] / d['Close'].iloc[0] * 100, label=label_name, linewidth=2)
             ax.set_ylabel("成長率 (%)")
-            ax.legend(loc='upper left', fontsize='small')
+            ax.grid(True, linestyle='--', alpha=0.5)
+            ax.legend(loc='upper left', fontsize='small', frameon=True)
             st.pyplot(fig)
 
-            # --- 💰 中間広告枠 (1つ目) ---
-            st.markdown("""
-                <div class="ad-section">
-                    <span class="ad-badge">PR</span>
-                    <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank" class="ad-link">
-                        【DMM 株】最短即日で口座開設！取引手数料も業界最安水準
-                    </a>
-                    <p style="font-size: 0.8rem; margin-top: 5px; color: #4a5568;">スマホで完結。初心者でも使いやすいツールが充実。</p>
-                </div>
-            """, unsafe_allow_html=True)
+            # --- 💰 PR広告 ---
+            st.markdown("""<div class="ad-section"><span class="ad-badge">PR</span><a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+7YDIR6+1WP2+15RRSY" target="_blank" class="ad-link">【DMM 株】最短即日で口座開設！取引手数料も業界最安水準</a></div>""", unsafe_allow_html=True)
 
             for res in results:
                 st.markdown(f"### 🎯 {res['name']} ({res['symbol']})")
@@ -156,20 +132,9 @@ if st.button("🚀 AI診断スタート"):
                 for n in res['news']:
                     st.markdown(f"<div class='news-card'><span class='news-stars'>⭐{n['star']}</span><a href='{n['link']}' target='_blank' style='text-decoration:none;color:inherit;'>{n['title']}</a></div>", unsafe_allow_html=True)
                 
-                share_text = (f"📈 【AIマーケット診断 Pro】\n━━━━━━━━━━━━━━\n🎯 企業：{res['name']} ({res['symbol']})\n🔍 期間：{res['period']}分析\n💰 投資：{res['invest']:,.0f}円\n📢 判定：{res['adv']}\n🚀 予想：{res['future']:,.0f}円\n━━━━━━━━━━━━━━\n{APP_URL}")
+                share_text = (f"📈 【AIマーケット診断 Pro】\n━━━━━━━━━━━━━━\n🎯 企業：{res['name']} ({res['symbol']})\n🔍 期待値：⭐{res['stars']}\n📢 判定：{res['adv']}\n🚀 予想：{res['future']:,.0f}円\n━━━━━━━━━━━━━━\n{APP_URL}")
                 st.markdown(f'<a href="https://twitter.com/intent/tweet?text={urllib.parse.quote(share_text)}" target="_blank" class="x-share-button">𝕏 結果をポストする</a>', unsafe_allow_html=True)
                 st.divider()
 
-# --- 💰 下部広告枠 (2つ目) ---
-st.markdown("""
-    <div class="ad-section">
-        <span class="ad-badge">PR</span>
-        <a href="https://px.a8.net/svt/ejp?a8mat=4AX5KE+8LLFCI+1WP2+1HM30Y" target="_blank" class="ad-link">
-            投資の達人になるなら【TOSSY】無料オンライン講座実施中！
-        </a>
-        <p style="font-size: 0.8rem; margin-top: 5px; color: #4a5568;">資産運用の基本から応用まで、プロのノウハウを動画で学ぶ。</p>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づく予測であり、将来の成果を保証しません。</div>', unsafe_allow_html=True)
+st.markdown('<div class="disclaimer-box">⚠️ 免責事項: 本アプリは過去データに基づく予測であり将来を保証しません。判断は自己責任で。</div>', unsafe_allow_html=True)
 
