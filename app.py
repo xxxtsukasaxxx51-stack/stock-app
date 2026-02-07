@@ -158,19 +158,51 @@ if execute:
                 })
             except: continue
 
+# --- 6. 実行ロジック内のグラフ描画部分を以下に差し替え ---
     if results:
-        # グラフ
+        # 1. グラフ表示
         st.subheader("📈 トレンド予測グラフ")
-        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        # グラフのサイズを少し横長にして凡例スペースを確保
+        fig, ax = plt.subplots(figsize=(14, 7))
+        
+        # 銘柄ごとにループして描画
         for name, data in plot_data.items():
             base_p = data['Close'].iloc[0]
             norm_p = data['Close'] / base_p * 100
-            line = ax.plot(data.index, norm_p, label=name, linewidth=2)
+            
+            # ★線の描画（ラベルを明示的に指定）
+            line = ax.plot(data.index, norm_p, label=f"{name}", linewidth=2.5, alpha=0.8)
+            color = line[0].get_color()
+            
+            # 未来の予測地点（星印）
             res_item = next(r for r in results if r['銘柄'] == name)
             norm_pred = (res_item['pred'] / base_p) * 100
             future_date = data.index[-1] + timedelta(days=1)
-            ax.plot([data.index[-1], future_date], [norm_p.iloc[-1], norm_pred], color=line[0].get_color(), linestyle='--', alpha=0.5)
-            ax.scatter(future_date, norm_pred, color=line[0].get_color(), marker='*', s=350, edgecolors='black', zorder=10)
+            
+            # 予測ルートの点線
+            ax.plot([data.index[-1], future_date], [norm_p.iloc[-1], norm_pred], 
+                    color=color, linestyle='--', alpha=0.5)
+            
+            # 未来の地点に星を描画
+            ax.scatter(future_date, norm_pred, color=color, marker='*', s=350, 
+                       edgecolors='black', zorder=10)
+        
+        # ★凡例をグラフの外側に配置（ここが重要！）
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=12)
+        
+        # 基準線 (開始時の価格100%)
+        plt.axhline(100, color='black', linestyle='-', alpha=0.2)
+        
+        # グラフの見た目調整
+        plt.title(f"株価トレンド比較（開始日を100とした成長率）", fontsize=15, pad=20)
+        plt.ylabel("成長率 (%)")
+        plt.xlabel("日付")
+        plt.grid(True, alpha=0.2)
+        
+        # レイアウトを整えて凡例が切れないようにする
+        plt.tight_layout()
+        
         st.pyplot(fig)
 
         # 診断詳細
