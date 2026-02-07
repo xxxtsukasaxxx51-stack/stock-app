@@ -1,11 +1,12 @@
 streamlit
 yfinance
 feedparser
+pandas
+matplotlib
 japanize-matplotlib
 transformers
 torch
+sklearn-pandas
 scikit-learn
-pandas
-matplotlib
-numpy
 googletrans==4.0.0-rc1
+numpy
